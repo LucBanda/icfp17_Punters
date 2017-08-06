@@ -11,7 +11,7 @@ class OnlineClient:
     def __init__(self, host, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.cb = lambda line: self.readCb(line)
-        self.state = LambdaMap(None)
+        self.state = None
         self.handshake = None
         self.setup = False
         self.punter = None

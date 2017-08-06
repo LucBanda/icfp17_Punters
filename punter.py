@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import signal
 from model import River
-from graph_drawer import gameViz
 from PunterClient import OnlineClient
 import sys
 
@@ -15,23 +14,23 @@ class LambdaPunter:
 
     def __init__(self, client):
         self.client = client
-        self.riverClaimed = {}
+        self.map = client.state
         self.position = None
-        self.viz = gameViz(self.client.state)
         self.currentlyMining = None
 
     def start(self):
         while True:
             self.client.readNext()
             if self.client.ready:
+                self.map = client.state
                 self.client.setReadCb(lambda line: self.eventIncoming(line))
 
     def applyMove(self, moves):
         for move in moves:
             if "claim" in move.keys():
-                if not self.riverClaimed.has_key(int(move["claim"]["punter"])):
-                    self.riverClaimed[int(move["claim"]["punter"])] = []
-                self.riverClaimed[int(move["claim"]["punter"])].append(River(move["claim"]["source"], move["claim"]["target"]))
+                if not self.map.riverClaimed.has_key(int(move["claim"]["punter"])):
+                    self.map.riverClaimed[int(move["claim"]["punter"])] = []
+                self.map.riverClaimed[int(move["claim"]["punter"])].append(River(move["claim"]["source"], move["claim"]["target"]))
 
 
 
@@ -45,8 +44,8 @@ class LambdaPunter:
             pass
         shortest = 0
         shortestDist = 10
-        for river in self.client.state.sites[currentloc].rivers:
-            if self.client.state.sites[river.otherSide(currentloc)].isMine and river.otherSide(currentloc) != startMine:
+        for river in self.map.sites[currentloc].rivers:
+            if self.map.sites[river.otherSide(currentloc)].isMine and river.otherSide(currentloc) != startMine:
                 return (recursionFactor, river.otherSide(currentloc))
             else:
                 (distance, mine) = self.findshortestMineFromMine(startMine, river.otherSide(currentloc), recursionFactor+1)
@@ -61,10 +60,10 @@ class LambdaPunter:
         move = {"punter":self.client.punter, "source":0, "target":0}
 
         if (self.currentlyMining == None):
-            for mine in self.client.state.mines:
+            for mine in self.map.mines:
                 mineFree = True
-                for river in self.client.state.sites[mine].rivers:
-                    if self.riverClaimed.has_key(self.client.punter) and river in self.riverClaimed[self.client.punter]:
+                for river in self.map.sites[mine].rivers:
+                    if self.map.riverClaimed.has_key(self.client.punter) and river in self.map.riverClaimed[self.client.punter]:
                         mineFree = False
                 if mineFree:
                     self.currentlyMining = (mine, mine)
@@ -79,7 +78,7 @@ class LambdaPunter:
             move["source"] = self.currentlyMining[1]
             move["target"] = path
             self.currentlyMining = (self.currentlyMining[0], path)
-            if self.client.state.sites[path].isMine:
+            if self.map.sites[path].isMine:
                 self.currentlyMining = None
         else:
             move = None
@@ -90,8 +89,7 @@ class LambdaPunter:
         for key,value in event.iteritems():
             if (key == u'move'):
                 self.applyMove(value["moves"])
-                self.viz.update(self.client.state, self.riverClaimed)
-                self.viz.display()
+                self.map.display()
                 move = self.calculateNextMove()
                 if (move):
                     printD("found move, playing")
