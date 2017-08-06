@@ -28,10 +28,7 @@ class LambdaPunter:
     def applyMove(self, moves):
         for move in moves:
             if "claim" in move.keys():
-                if not self.map.riverClaimed.has_key(int(move["claim"]["punter"])):
-                    self.map.riverClaimed[int(move["claim"]["punter"])] = []
-                self.map.riverClaimed[int(move["claim"]["punter"])].append(River(move["claim"]["source"], move["claim"]["target"]))
-
+                self.map.claimRiver(move["claim"]["punter"], River(move["claim"]["source"], move["claim"]["target"]))
 
 
     def findshortestMineFromMine(self, startMine, currentloc, recursionFactor):
@@ -57,32 +54,7 @@ class LambdaPunter:
         return (shortestDist, path)
 
     def calculateNextMove(self):
-        move = {"punter":self.client.punter, "source":0, "target":0}
-
-        if (self.currentlyMining == None):
-            for mine in self.map.mines:
-                mineFree = True
-                for river in self.map.sites[mine].rivers:
-                    if self.map.riverClaimed.has_key(self.client.punter) and river in self.map.riverClaimed[self.client.punter]:
-                        mineFree = False
-                if mineFree:
-                    self.currentlyMining = (mine, mine)
-                    break;
-        if self.currentlyMining == None:
-            printD("serious issue, no free mine found")
-            return None
-
-        (distance, path) = self.findshortestMineFromMine(self.currentlyMining[0], self.currentlyMining[1], 0)
-
-        if (path != None):
-            move["source"] = self.currentlyMining[1]
-            move["target"] = path
-            self.currentlyMining = (self.currentlyMining[0], path)
-            if self.map.sites[path].isMine:
-                self.currentlyMining = None
-        else:
-            move = None
-        return move
+        pass
 
     def eventIncoming(self, event):
         printD("event : " + str(event))
@@ -100,7 +72,7 @@ class LambdaPunter:
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
-    client = OnlineClient("punter.inf.ed.ac.uk", 9005)
+    client = OnlineClient("punter.inf.ed.ac.uk", 9003)
     game = LambdaPunter(client)
     try:
         game.start()

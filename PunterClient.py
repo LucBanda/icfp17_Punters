@@ -23,7 +23,15 @@ class OnlineClient:
         self.cb = cb
 
     def connect(self, host, port):
-        self.sock.connect((host, port))
+        retry = 100
+        while retry:
+            try:
+                self.sock.connect((host, port))
+                break
+            except:
+                printD("retrying connection ... ")
+                retry -= 1
+
         self.write({"me":"LucB"})
 
     def write(self, dict):
