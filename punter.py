@@ -46,7 +46,6 @@ class LambdaPunter:
         shortest = 0
         shortestDist = 10
         for river in self.client.state.sites[currentloc].rivers:
-            for punter in range(self.client.punters)
             if self.client.state.sites[river.otherSide(currentloc)].isMine and river.otherSide(currentloc) != startMine:
                 return (recursionFactor, river.otherSide(currentloc))
             else:
