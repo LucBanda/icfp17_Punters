@@ -125,6 +125,8 @@ class LambdaMap:
 
 
     def displayMove(self, punter, source, target):
+        if (self.punters > 7) and punter != self.punter:
+            return
         colors = ["c-", "g-", "y-", "k-", "m-","b-", "w-"]
         if (punter == self.punter):
             color = "r-"

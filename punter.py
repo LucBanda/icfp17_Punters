@@ -30,7 +30,6 @@ class LambdaPunter:
         for move in moves:
             if "claim" in move.keys():
                 self.map.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
-                printD("entering display :" + str(self.client.getTimeout()))
                 self.map.displayMove(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
 
     def calculateNextMove(self):
@@ -45,10 +44,10 @@ class LambdaPunter:
                     if bestScore < score:
                         bestScore = score
                         bestMove = (source, target)
-                if self.client.getTimeout() < 2.0 :
+                if self.client.getTimeout() < 0.5 :
                     printD("breaking out of time")
                     break
-            if self.client.getTimeout() < 2.0:
+            if self.client.getTimeout() < 0.5:
                 break
         self.map.displayScore(bestScore)
 
@@ -65,9 +64,7 @@ class LambdaPunter:
 
         for key,value in event.iteritems():
             if (key == u'move'):
-                printD("entering move event :" + str(self.client.getTimeout()))
                 self.applyMove(value["moves"])
-                printD("calculate next move :" + str(self.client.getTimeout()))
                 move = self.calculateNextMove()
                 if (move):
                     printD("found move, playing")
@@ -75,6 +72,7 @@ class LambdaPunter:
                 else:
                     printD("did not find any move, passing")
                     self.client.write({"pass":{"punter":self.client.punter}})
+                printD("playing at :" + str(self.client.getTimeout()))
             if (key == u'stop'):
                 for punterScore in value["scores"]:
                     self.map.setScores(punterScore["punter"], punterScore["score"])
@@ -85,7 +83,7 @@ class LambdaPunter:
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     printD("starting..")
-    client = OnlineClient("punter.inf.ed.ac.uk",9225)
+    client = OnlineClient("punter.inf.ed.ac.uk",9333)
     game = LambdaPunter(client)
     try:
         game.start()
