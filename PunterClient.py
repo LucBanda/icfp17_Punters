@@ -60,8 +60,7 @@ class OnlineClient:
                 while len(line) != size:
                     line += self.sock.recv(size - len(line))
                 printD(str(size) + "," + str(len(line)) + ":" + line)
-                self.cb(json.loads(line))
-                break
+                return self.cb(json.loads(line))
 
     def readCb(self, event):
         for key,value in event.iteritems():

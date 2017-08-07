@@ -141,3 +141,5 @@ class LambdaMap:
     def displayScore(self, score):
         plt.title('map ' + str(score))
 
+    def close(self):
+        plt.close('all')

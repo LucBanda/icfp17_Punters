@@ -20,8 +20,9 @@ class LambdaPunter:
         self.currentlyMining = None
 
     def start(self):
-        while True:
-            self.client.readNext()
+        shouldStop = False
+        while not shouldStop:
+            shouldStop = self.client.readNext()
             if self.client.ready:
                 self.map = client.state
                 self.client.setReadCb(lambda line: self.eventIncoming(line))
@@ -78,17 +79,23 @@ class LambdaPunter:
                     self.map.setScores(punterScore["punter"], punterScore["score"])
                 printD(str(self.map.scores))
                 printD("my Score : " + str(self.map.calculateScore()))
-                raise IOError()
+                return True
+        return False
+
+    def close(self):
+        self.map.close()
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     printD("starting..")
-    client = OnlineClient("punter.inf.ed.ac.uk",9333)
+    client = OnlineClient("punter.inf.ed.ac.uk",9003)
     game = LambdaPunter(client)
     try:
         game.start()
     except IOError as e:
         print e
-        client.sock.close()
+
+    game.close()
+    client.sock.close()
 
     printD("exit correctly")
