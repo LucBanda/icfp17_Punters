@@ -66,6 +66,8 @@ class LambdaMap:
             for otherMine in self.mines:
                 self.scoringGraph.node[mine]["score"][otherMine] = nx.shortest_path_length(self.graph, otherMine, mine)**2
 
+        self.displayMap()
+
     def claimInScoringGraph(self, source, target):
         nodes = self.scoringGraph.nodes()
         if not (target in nodes):
@@ -80,13 +82,13 @@ class LambdaMap:
                 self.scoringGraph.node[source]["score"][othermine] = nx.shortest_path_length(self.graph, othermine, source)**2
         self.scoringGraph.add_edge(source, target)
 
-    def claimRiver(self, punter, river):
-        self.graph.edge[river.source][river.target]["claimed"] = punter
+    def claimRiver(self, punter, source, target):
+        self.graph.edge[source][target]["claimed"] = punter
         if (punter != self.punter):
-            self.availableGraph.remove_edge(river.source, river.target)
+            self.availableGraph.remove_edge(source, target)
         else:
-            self.availableGraph.edge[river.source][river.target]["claimed"] = punter
-            self.claimInScoringGraph(river.source, river.target)
+            self.availableGraph.edge[source][target]["claimed"] = punter
+            self.claimInScoringGraph(source, target)
 
     def getAvailableGraph(self):
         return self.availableGraph
@@ -110,38 +112,30 @@ class LambdaMap:
     def setScores(self, punter, score):
         self.scores[punter] = score
 
-    def display(self):
-
-        plt.title('map' + str(self.calculateScore()))
-
+    def displayMap(self):
+        plt.title('map ')
         for river in self.graph.edges_iter():
             plt.plot([self.graph.node[river[0]]["site"].x, self.graph.node[river[1]]["site"].x],
                      [self.graph.node[river[0]]["site"].y, self.graph.node[river[1]]["site"].y], "b--", linewidth=1)
-
-        colors = ["y-", "k-", "m-","b-"]
-        for punter in range(0, self.punters):
-            color = ""
-            if (punter == self.punter):
-                color = "r-"
-            else:
-                color = colors[0]
-                colors.remove(color)
-            bunch = [(s,t,attr) for s,t,attr in self.graph.edges(data=True) if attr["claimed"] == punter]
-            subgraph = nx.Graph(bunch)
-            for river in subgraph.edges():
-                source = river[0]
-                target = river[0]
-                for edge in subgraph.edges_iter():
-                    plt.plot([self.graph.node[edge[0]]["site"].x, self.graph.node[edge[1]]["site"].x],
-                        [self.graph.node[edge[0]]["site"].y, self.graph.node[edge[1]]["site"].y], color, linewidth=5)
-
         plt.plot([site["site"].x for site in self.graph.node.values()],
                  [site["site"].y for site in self.graph.node.values()], 'k.', label="site")
 
         plt.plot([site["site"].x for site in self.graph.node.values() if site["site"].isMine],
                  [site["site"].y for site in self.graph.node.values() if site["site"].isMine], 'ro', label="mine")
 
+
+    def displayMove(self, punter, source, target):
+        colors = ["c-", "g-", "y-", "k-", "m-","b-", "w-"]
+        if (punter == self.punter):
+            color = "r-"
+        else:
+            color = colors[punter if punter < self.punters else punter -1]
+        plt.plot([self.graph.node[source]["site"].x, self.graph.node[target]["site"].x],
+                    [self.graph.node[source]["site"].y, self.graph.node[target]["site"].y], color, linewidth=5)
         plt.show(block = False)
         plt.draw()
         self.fig.canvas.draw()
+
+    def displayScore(self, score):
+        plt.title('map ' + str(score))
 

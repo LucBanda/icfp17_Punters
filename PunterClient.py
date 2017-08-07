@@ -19,6 +19,11 @@ class OnlineClient:
         self.punters = None
         self.ready = None
         self.connect(host, port)
+        self.timeout = 10.0
+        self.timeStart = 0
+
+    def getTimeout(self):
+        return self.timeout - (time.time() - self.timeStart)
 
     def setReadCb(self, cb):
         self.cb = cb

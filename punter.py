@@ -3,6 +3,7 @@ import signal
 from model import River
 from PunterClient import OnlineClient
 import sys
+import time
 
 def signal_handler(signal, frame):
     raise IOError()
@@ -28,11 +29,12 @@ class LambdaPunter:
     def applyMove(self, moves):
         for move in moves:
             if "claim" in move.keys():
-                self.map.claimRiver(move["claim"]["punter"], River(move["claim"]["source"], move["claim"]["target"]))
+                self.map.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
+                printD("entering display :" + str(self.client.getTimeout()))
+                self.map.displayMove(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
 
     def calculateNextMove(self):
         move = {"punter": self.client.punter, "source": 0, "target": 0}
-        availableGraph = self.map.getAvailableGraph()
         bestScore = 0
         bestMove = None
 
@@ -43,6 +45,12 @@ class LambdaPunter:
                     if bestScore < score:
                         bestScore = score
                         bestMove = (source, target)
+                if self.client.getTimeout() < 2.0 :
+                    printD("breaking out of time")
+                    break
+            if self.client.getTimeout() < 2.0:
+                break
+        self.map.displayScore(bestScore)
 
         if bestMove != None:
             move["source"] = bestMove[0]
@@ -53,10 +61,13 @@ class LambdaPunter:
 
     def eventIncoming(self, event):
         printD("event : " + str(event))
+        self.client.timeStart = time.time()
+
         for key,value in event.iteritems():
             if (key == u'move'):
+                printD("entering move event :" + str(self.client.getTimeout()))
                 self.applyMove(value["moves"])
-                self.map.display()
+                printD("calculate next move :" + str(self.client.getTimeout()))
                 move = self.calculateNextMove()
                 if (move):
                     printD("found move, playing")
@@ -68,12 +79,13 @@ class LambdaPunter:
                 for punterScore in value["scores"]:
                     self.map.setScores(punterScore["punter"], punterScore["score"])
                 printD(str(self.map.scores))
+                printD("my Score : " + str(self.map.calculateScore()))
                 raise IOError()
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     printD("starting..")
-    client = OnlineClient("punter.inf.ed.ac.uk", 9003)
+    client = OnlineClient("punter.inf.ed.ac.uk",9225)
     game = LambdaPunter(client)
     try:
         game.start()
