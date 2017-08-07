@@ -2,6 +2,7 @@ from model import LambdaMap
 import socket
 import json
 import sys
+import time
 
 def printD(str):
     print >> sys.stderr, str
@@ -23,7 +24,7 @@ class OnlineClient:
         self.cb = cb
 
     def connect(self, host, port):
-        retry = 100
+        retry = 50
         while retry:
             try:
                 self.sock.connect((host, port))
@@ -31,7 +32,9 @@ class OnlineClient:
             except:
                 printD("retrying connection ... ")
                 retry -= 1
-
+        if (retry == 0):
+            printD("can't connect")
+            exit(0)
         self.write({"me":"LucB"})
 
     def write(self, dict):
@@ -64,10 +67,12 @@ class OnlineClient:
             if (key == u'punters'):
                 self.punters = value
             if (key == u'map'):
-                self.state = LambdaMap(value)
+                self.state = LambdaMap(value, self.punters, self.punter)
         if (self.punter != None) \
                 and (self.handshake != None) \
                 and (self.state != None)\
                 and (self.punters != None):
+            self.state.punter = self.punter
+            self.state.punters = self.punters
             self.write({"ready": self.punter})
             self.ready = True

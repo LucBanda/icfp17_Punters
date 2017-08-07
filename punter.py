@@ -30,31 +30,26 @@ class LambdaPunter:
             if "claim" in move.keys():
                 self.map.claimRiver(move["claim"]["punter"], River(move["claim"]["source"], move["claim"]["target"]))
 
-
-    def findshortestMineFromMine(self, startMine, currentloc, recursionFactor):
-        if recursionFactor == 5:
-            return (10,None)
-
-        if (currentloc == 7):
-            pass
-        if (currentloc == 16):
-            pass
-        shortest = 0
-        shortestDist = 10
-        for river in self.map.sites[currentloc].rivers:
-            if self.map.sites[river.otherSide(currentloc)].isMine and river.otherSide(currentloc) != startMine:
-                return (recursionFactor, river.otherSide(currentloc))
-            else:
-                (distance, mine) = self.findshortestMineFromMine(startMine, river.otherSide(currentloc), recursionFactor+1)
-                if distance < shortestDist:
-                    shortestDist = distance
-                    path = river.otherSide(currentloc)
-        if (shortestDist == 10):
-            return (shortestDist, None)
-        return (shortestDist, path)
-
     def calculateNextMove(self):
-        pass
+        move = {"punter": self.client.punter, "source": 0, "target": 0}
+        availableGraph = self.map.getAvailableGraph()
+        bestScore = 0
+        bestMove = None
+
+        for source in self.map.scoringGraph.nodes():
+            for target in self.map.getAvailableGraph().neighbors(source):
+                if self.map.getAvailableGraph().edge[source][target]["claimed"] == -1:
+                    score = self.map.calculateScore((source, target))
+                    if bestScore < score:
+                        bestScore = score
+                        bestMove = (source, target)
+
+        if bestMove != None:
+            move["source"] = bestMove[0]
+            move["target"] = bestMove[1]
+        else:
+            move = None
+        return move
 
     def eventIncoming(self, event):
         printD("event : " + str(event))
@@ -69,9 +64,15 @@ class LambdaPunter:
                 else:
                     printD("did not find any move, passing")
                     self.client.write({"pass":{"punter":self.client.punter}})
+            if (key == u'stop'):
+                for punterScore in value["scores"]:
+                    self.map.setScores(punterScore["punter"], punterScore["score"])
+                printD(str(self.map.scores))
+                raise IOError()
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
+    printD("starting..")
     client = OnlineClient("punter.inf.ed.ac.uk", 9003)
     game = LambdaPunter(client)
     try:
