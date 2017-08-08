@@ -50,7 +50,6 @@ class LambdaPunter:
                     bestScore = score
                     bestMove = (source, target)
                 if self.client.getTimeout() < 0.5 :
-                    printD("breaking out of time")
                     break
             if self.client.getTimeout() < 0.5:
                 break
@@ -65,7 +64,6 @@ class LambdaPunter:
         return move
 
     def eventIncoming(self, event):
-        printD("event : " + str(event))
         self.client.timeStart = time.time()
 
         for key,value in event.iteritems():
@@ -73,7 +71,6 @@ class LambdaPunter:
                 self.applyMove(value["moves"])
                 move = self.calculateNextMove()
                 if (move):
-                    printD("found move, playing")
                     self.client.write({"claim":move})
                 else:
                     printD("did not find any move, passing")
