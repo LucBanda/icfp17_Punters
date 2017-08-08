@@ -1,0 +1,17 @@
+listing games : 
+{'map': u'gothenburg-sparse.json', 'options': u'', 'timeout': 10, 'port': 9405}
+{'map': u'sample.json', 'options': u'', 'timeout': 10, 'port': 9009}
+{'map': u'Sierpinski-triangle.json', 'options': u'', 'timeout': 10, 'port': 9080}
+{'map': u'boston-sparse.json', 'options': u'', 'timeout': 10, 'port': 9225}
+{'map': u'circle.json', 'options': u'', 'timeout': 10, 'port': 9117}
+{'map': u'lambda.json', 'options': u'', 'timeout': 10, 'port': 9045}
+{'map': u'randomMedium.json', 'options': u'', 'timeout': 10, 'port': 9153}
+{'map': u'randomSparse.json', 'options': u'', 'timeout': 10, 'port': 9189}
+^C
+game : {'map': u'sample.json', 'options': u'', 'timeout': 10, 'port': 9009} score : 27
+game : {'map': u'Sierpinski-triangle.json', 'options': u'', 'timeout': 10, 'port': 9080} score : 1255
+^C
+game : {'map': u'circle.json', 'options': u'', 'timeout': 10, 'port': 9117} score : 244
+game : {'map': u'lambda.json', 'options': u'', 'timeout': 10, 'port': 9045} score : 154
+game : {'map': u'randomMedium.json', 'options': u'', 'timeout': 10, 'port': 9153} score : 1981
+game : {'map': u'randomSparse.json', 'options': u'', 'timeout': 10, 'port': 9189} score : 5612

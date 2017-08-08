@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
 import networkx as nx
+import time
+import sys
 
+def printD(str):
+    print >> sys.stderr, str
+    pass
 
 class Site:
     def __init__(self, id, x, y, ):
@@ -40,30 +45,26 @@ class LambdaMap:
         self.scores = {}
         self.availableGraph = self.graph.copy()
         self.scoringGraph = nx.Graph()
+
+        start = time.time()
         for mine in self.mines:
+            list = nx.single_source_shortest_path_length(self.graph, mine)
+            nx.set_node_attributes(self.graph, "pathForMine_" + str(mine), list)
+
             self.scoringGraph.add_node(mine, attr_dict=self.graph.node[mine])
             self.scoringGraph.node[mine]["score"] = {}
-            for otherMine in self.mines:
-                self.scoringGraph.node[mine]["score"][otherMine] = nx.shortest_path_length(self.graph, otherMine,
-                                                                                           mine) ** 2
 
         self.displayMap()
 
     def claimInScoringGraph(self, source, target):
 
         if not self.scoringGraph.has_node(target):
-            node = self.graph.node[target]
-            node["score"] = {}
-            for othermine in self.mines:
-                node["score"][othermine] = nx.shortest_path_length(self.graph, othermine, target) ** 2
-            self.scoringGraph.add_node(target, attr_dict=node)
+            nodeAttr = self.graph.node[target]
+            self.scoringGraph.add_node(target, attr_dict=nodeAttr)
 
         if not self.scoringGraph.has_node(source):
-            node = self.graph.node[source]
-            node["score"] = {}
-            for othermine in self.mines:
-                node["score"][othermine] = nx.shortest_path_length(self.graph, othermine, source) ** 2
-            self.scoringGraph.add_node(source, attr_dict=node)
+            nodeAttr = self.graph.node[source]
+            self.scoringGraph.add_node(source, attr_dict=nodeAttr)
 
         self.scoringGraph.add_edge(source, target)
 
@@ -85,7 +86,7 @@ class LambdaMap:
         for (node, attr) in self.scoringGraph.nodes_iter(data=True):
             for mine in self.mines:
                 if (nx.has_path(self.scoringGraph, node, mine)):
-                    score += attr["score"][mine]
+                    score += attr["pathForMine_"+str(mine)]**2
 
         if claim:
             self.scoringGraph.remove_edge(claim[0], claim[1])
