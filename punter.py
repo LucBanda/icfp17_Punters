@@ -34,7 +34,6 @@ class LambdaPunter:
         for move in moves:
             if "claim" in move.keys():
                 self.map.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
-                self.map.displayMove(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
 
     def calculateNextMove(self):
         move = {"punter": self.client.punter, "source": 0, "target": 0}
@@ -42,19 +41,20 @@ class LambdaPunter:
         bestMove = None
 
         scoringNodes = self.map.scoringGraph.nodes()
-        scoringEdges = self.map.scoringGraph.edges()
+        i = 0
         for source in scoringNodes:
             for target in self.map.getAvailableGraph().neighbors(source):
-                if not (source,target) in scoringEdges:
-                    score = self.map.calculateScore((source, target))
-                    if bestScore < score:
-                        bestScore = score
-                        bestMove = (source, target)
+                score = self.map.calculateScore((source, target))
+                i += 1
+                if bestScore < score:
+                    bestScore = score
+                    bestMove = (source, target)
                 if self.client.getTimeout() < 0.5 :
                     printD("breaking out of time")
                     break
             if self.client.getTimeout() < 0.5:
                 break
+        printD("loops " + str(i))
         self.map.displayScore(self.title, bestScore)
 
         if bestMove != None:

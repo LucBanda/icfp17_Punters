@@ -1,19 +1,20 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 
+
 class Site:
-    def __init__(self, id, x, y,):
+    def __init__(self, id, x, y, ):
         self.id = id
-        self.x=x
-        self.y=y
-        self.rivers=[]
+        self.x = x
+        self.y = y
+        self.rivers = []
         self.isMine = False
 
     def addRiver(self, river):
         self.rivers.append(river)
 
-class LambdaMap:
 
+class LambdaMap:
     def __init__(self, map, punters, punter):
         self.mines = []
         self.punters = punters
@@ -30,7 +31,7 @@ class LambdaMap:
             self.graph.add_node(site["id"])
             self.graph.node[site["id"]]["site"] = Site(site["id"], site["x"], site["y"])
 
-        self.graph.add_edges_from([(river["source"],river["target"],{"claimed":-1}) for river in map["rivers"]])
+        self.graph.add_edges_from([(river["source"], river["target"], {"claimed": -1}) for river in map["rivers"]])
 
         self.mines = map["mines"]
         for mine in self.mines:
@@ -43,39 +44,39 @@ class LambdaMap:
             self.scoringGraph.add_node(mine, attr_dict=self.graph.node[mine])
             self.scoringGraph.node[mine]["score"] = {}
             for otherMine in self.mines:
-                self.scoringGraph.node[mine]["score"][otherMine] = nx.shortest_path_length(self.graph, otherMine, mine)**2
+                self.scoringGraph.node[mine]["score"][otherMine] = nx.shortest_path_length(self.graph, otherMine,
+                                                                                           mine) ** 2
 
         self.displayMap()
 
     def claimInScoringGraph(self, source, target):
-        nodes = self.scoringGraph.nodes()
-        if not (target in nodes):
+
+        if not self.scoringGraph.has_node(target):
             node = self.graph.node[target]
             node["score"] = {}
-            self.scoringGraph.add_node(target, attr_dict = node)
             for othermine in self.mines:
-                node["score"][othermine] = nx.shortest_path_length(self.graph, othermine, target)**2
+                node["score"][othermine] = nx.shortest_path_length(self.graph, othermine, target) ** 2
+            self.scoringGraph.add_node(target, attr_dict=node)
 
-        if not (source in nodes):
+        if not self.scoringGraph.has_node(source):
             node = self.graph.node[source]
             node["score"] = {}
-            self.scoringGraph.add_node(source, attr_dict = node)
             for othermine in self.mines:
-                node["score"][othermine] = nx.shortest_path_length(self.graph, othermine, source)**2
+                node["score"][othermine] = nx.shortest_path_length(self.graph, othermine, source) ** 2
+            self.scoringGraph.add_node(source, attr_dict=node)
 
         self.scoringGraph.add_edge(source, target)
 
     def claimRiver(self, punter, source, target):
-        if (punter != self.punter):
-            self.availableGraph.remove_edge(source, target)
-        else:
-            self.availableGraph.remove_edge(source,target)
+        self.availableGraph.remove_edge(source, target)
+        if punter == self.punter:
             self.claimInScoringGraph(source, target)
+            self.displayMove(self.punter, source, target)
 
     def getAvailableGraph(self):
         return self.availableGraph
 
-    def calculateScore(self, claim = None):
+    def calculateScore(self, claim=None):
         score = 0
 
         if claim:
@@ -105,19 +106,19 @@ class LambdaMap:
         plt.plot([site["site"].x for site in self.graph.node.values() if site["site"].isMine],
                  [site["site"].y for site in self.graph.node.values() if site["site"].isMine], 'ro', label="mine")
 
+        plt.show(block=False)
 
     def displayMove(self, punter, source, target):
         if (self.punters > 7) and punter != self.punter:
             return
-        colors = ["c-", "g-", "y-", "k-", "m-","b-", "w-"]
+        colors = ["c-", "g-", "y-", "k-", "m-", "b-", "w-"]
         if (punter == self.punter):
             color = "r-"
         else:
             color = colors[punter if punter < self.punters else punter -1]
-        source = self.graph.node[source]["site"]
-        target = self.graph.node[target]["site"]
+        source = self.scoringGraph.node[source]["site"]
+        target = self.scoringGraph.node[target]["site"]
         plt.plot([source.x, target.x], [source.y, target.y], color, linewidth=5)
-        plt.show(block = False)
         self.fig.canvas.draw()
 
     def displayScore(self, mapTitle, score):
