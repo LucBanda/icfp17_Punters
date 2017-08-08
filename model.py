@@ -20,10 +20,12 @@ class Site:
 
 
 class LambdaMap:
-    def __init__(self, map, punters, punter):
+    def __init__(self, client, map, punters, punter):
         self.mines = []
         self.punters = punters
         self.punter = punter
+        self.client = client
+        self.currentScore = 0
 
         self.fig = plt.figure(figsize=(10, 30))
 
@@ -36,14 +38,13 @@ class LambdaMap:
             self.graph.add_node(site["id"])
             self.graph.node[site["id"]]["site"] = Site(site["id"], site["x"], site["y"])
 
-        self.graph.add_edges_from([(river["source"], river["target"], {"claimed": -1}) for river in map["rivers"]])
+        self.graph.add_edges_from([(river["source"], river["target"]) for river in map["rivers"]])
 
         self.mines = map["mines"]
         for mine in self.mines:
             self.graph.node[mine]["site"].isMine = True
 
         self.scores = {}
-        self.availableGraph = self.graph.copy()
         self.scoringGraph = nx.Graph()
 
         start = time.time()
@@ -53,6 +54,8 @@ class LambdaMap:
 
             self.scoringGraph.add_node(mine, attr_dict=self.graph.node[mine])
             self.scoringGraph.node[mine]["score"] = {}
+
+        self.leftMoves = nx.number_of_edges(self.graph) / self.punters
 
         self.displayMap()
 
@@ -69,27 +72,18 @@ class LambdaMap:
         self.scoringGraph.add_edge(source, target)
 
     def claimRiver(self, punter, source, target):
-        self.availableGraph.remove_edge(source, target)
+        self.graph.remove_edge(source, target)
         if punter == self.punter:
             self.claimInScoringGraph(source, target)
             self.displayMove(self.punter, source, target)
 
-    def getAvailableGraph(self):
-        return self.availableGraph
-
-    def calculateScore(self, claim=None):
+    def calculateScore(self):
         score = 0
-
-        if claim:
-            self.claimInScoringGraph(claim[0], claim[1])
 
         for (node, attr) in self.scoringGraph.nodes_iter(data=True):
             for mine in self.mines:
                 if (nx.has_path(self.scoringGraph, node, mine)):
                     score += attr["pathForMine_"+str(mine)]**2
-
-        if claim:
-            self.scoringGraph.remove_edge(claim[0], claim[1])
 
         return score
 
@@ -122,8 +116,59 @@ class LambdaMap:
         plt.plot([source.x, target.x], [source.y, target.y], color, linewidth=5)
         self.fig.canvas.draw()
 
+    def getNextMove(self):
+        move = {"punter": self.client.punter, "source": 0, "target": 0}
+        bestScore = 0
+        bestMove = None
+
+        scoringNodes = self.scoringGraph.nodes()
+        i = 0
+        for source in scoringNodes:
+            for target in self.graph.neighbors(source):
+                i += 1
+
+                self.claimInScoringGraph(source, target)
+
+                if not target in scoringNodes:
+                    targetNode = self.scoringGraph.node[target]
+                    deltascore = 0
+                    for mine in self.mines:
+                        if nx.has_path(self.scoringGraph, target, mine):
+                            deltascore += targetNode["pathForMine_"+str(mine)]**2
+
+                    self.scoringGraph.remove_edge(source, target)
+                    self.scoringGraph.remove_node(target)
+                else:
+                    deltascore = self.calculateScore() - self.currentScore
+                    self.scoringGraph.remove_edge(source, target)
+
+
+
+                if bestScore < deltascore:
+                    bestScore = deltascore
+                    bestMove = (source, target)
+                if self.client.getTimeout() < 0.5:
+                    break
+            if self.client.getTimeout() < 0.5:
+                break
+        printD("loops " + str(i))
+        self.currentScore += bestScore
+
+        self.leftMoves -= 1
+        self.displayScore(self.client.title, str(bestScore) + " / " + str(self.currentScore))
+
+        if bestMove != None:
+            move["source"] = bestMove[0]
+            move["target"] = bestMove[1]
+        else:
+            move = None
+
+
+        return move
+
+
     def displayScore(self, mapTitle, score):
-        plt.title(mapTitle + str(score))
+        plt.title(mapTitle + score + " (left:" +str(self.leftMoves) +")")
 
     def close(self):
         plt.close('all')

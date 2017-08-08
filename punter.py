@@ -35,41 +35,13 @@ class LambdaPunter:
             if "claim" in move.keys():
                 self.map.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
 
-    def calculateNextMove(self):
-        move = {"punter": self.client.punter, "source": 0, "target": 0}
-        bestScore = 0
-        bestMove = None
-
-        scoringNodes = self.map.scoringGraph.nodes()
-        i = 0
-        for source in scoringNodes:
-            for target in self.map.getAvailableGraph().neighbors(source):
-                score = self.map.calculateScore((source, target))
-                i += 1
-                if bestScore < score:
-                    bestScore = score
-                    bestMove = (source, target)
-                if self.client.getTimeout() < 0.5 :
-                    break
-            if self.client.getTimeout() < 0.5:
-                break
-        printD("loops " + str(i))
-        self.map.displayScore(self.title, bestScore)
-
-        if bestMove != None:
-            move["source"] = bestMove[0]
-            move["target"] = bestMove[1]
-        else:
-            move = None
-        return move
-
     def eventIncoming(self, event):
         self.client.timeStart = time.time()
 
         for key,value in event.iteritems():
             if (key == u'move'):
                 self.applyMove(value["moves"])
-                move = self.calculateNextMove()
+                move = self.map.getNextMove()
                 if (move):
                     self.client.write({"claim":move})
                 else:
@@ -90,41 +62,48 @@ class LambdaPunter:
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     argv = sys.argv[1:]
-    ports = []
     timeout = None
+    options = u""
 
     try:
-        opts, args = getopt.getopt(argv, "hp:t:")
+        opts, args = getopt.getopt(argv, "ht:o:m:")
     except getopt.GetoptError:
-        print 'punter.py [-h -p:port]'
+        print 'punter.py [-h -m map -o options -t timeout]'
         sys.exit(2)
+
+    gamesToPlay = []
+
+    status = StatusDownloader().getStatus()
+    if status == None:
+        print "can't connect"
+        exit(-2)
+
+    maps = status.keys()
+
     for opt, arg in opts:
         if opt == '-h':
             print 'punter.py [-h -p:port]'
             sys.exit()
-        elif opt == "-p":
-            ports = [arg]
+        elif (opt == "-o"):
+            options = arg
         elif (opt == "-t"):
             timeout = int(arg)
+        elif (opt == "-m"):
+            maps = [arg]
 
-    gamesToPlay = []
-    if ports == []:
-        status = StatusDownloader().getStatus()
-        if status == None:
-            print "can't connect"
-            exit(-2)
-        for map in status.keys():
-            #for now, option shall be ''
-            optionFilter = ''
-            for option in status[map]:
-                if option == optionFilter:
-                    if not timeout:
-                        for timeoutiter in status[map][option]:
-                            gamesToPlay.append({"map":map, "options":option, "timeout":timeoutiter, "port":status[map][option][timeoutiter]})
-                    else:
-                        if (status[map][option].has_key(timeout)):
-                            gamesToPlay.append({"map": map, "options": option, "timeout": timeout,
-                                                "port": status[map][option][timeout]})
+    if options == []:
+        options = u""
+
+    for map in maps:
+        for option in status[map]:
+            if option == options:
+                if not timeout:
+                    for timeoutiter in status[map][option]:
+                        gamesToPlay.append({"map":map, "options":option, "timeout":timeoutiter, "port":status[map][option][timeoutiter]})
+                else:
+                    if (status[map][option].has_key(timeout)):
+                        gamesToPlay.append({"map": map, "options": option, "timeout": timeout,
+                                            "port": status[map][option][timeout]})
 
     print ("listing games : ")
     for game in gamesToPlay:
@@ -133,7 +112,7 @@ if __name__ == '__main__':
     for gameToPlay in gamesToPlay:
         client = OnlineClient(gameToPlay["port"])
         game = LambdaPunter(client)
-        game.title = str(gameToPlay)
+        client.title = str(gameToPlay)
 
         client.timeout = gameToPlay["timeout"]
         try:

@@ -75,13 +75,12 @@ class OnlineClient:
             if (key == u'punters'):
                 self.punters = value
             if (key == u'map'):
-                self.state = LambdaMap(value, self.punters, self.punter)
+                self.state = value
         if (self.punter != None) \
                 and (self.handshake != None) \
                 and (self.state != None)\
                 and (self.punters != None):
-            self.state.punter = self.punter
-            self.state.punters = self.punters
+            self.state = LambdaMap(self, self.state, self.punters, self.punter)
             self.write({"ready": self.punter})
             self.ready = True
 
