@@ -41,9 +41,11 @@ class LambdaPunter:
         bestScore = 0
         bestMove = None
 
-        for source in self.map.scoringGraph.nodes():
+        scoringNodes = self.map.scoringGraph.nodes()
+        scoringEdges = self.map.scoringGraph.edges()
+        for source in scoringNodes:
             for target in self.map.getAvailableGraph().neighbors(source):
-                if self.map.getAvailableGraph().edge[source][target]["claimed"] == -1:
+                if not (source,target) in scoringEdges:
                     score = self.map.calculateScore((source, target))
                     if bestScore < score:
                         bestScore = score
@@ -53,7 +55,7 @@ class LambdaPunter:
                     break
             if self.client.getTimeout() < 0.5:
                 break
-        self.map.displayScore(bestScore)
+        self.map.displayScore(self.title, bestScore)
 
         if bestMove != None:
             move["source"] = bestMove[0]
@@ -132,17 +134,20 @@ if __name__ == '__main__':
         print str(game)
 
     for gameToPlay in gamesToPlay:
-        print "starting " + str(gameToPlay)+ " on port "+str(gameToPlay["port"])
         client = OnlineClient(gameToPlay["port"])
         game = LambdaPunter(client)
+        game.title = str(gameToPlay)
+
         client.timeout = gameToPlay["timeout"]
         try:
             game.start()
+            print "game : " + str(gameToPlay) +" score : " + str(game.map.scores[game.client.punter])
+            game.close()
+            client.sock.close()
         except IOError as e:
             print e
+            game.close()
+            client.sock.close()
 
-        print "game : " + str(gameToPlay) +" score : " + str(game.map.scores[game.client.punter])
-        game.close()
-        client.sock.close()
 
     printD("exit correctly")

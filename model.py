@@ -66,11 +66,10 @@ class LambdaMap:
         self.scoringGraph.add_edge(source, target)
 
     def claimRiver(self, punter, source, target):
-        self.graph.edge[source][target]["claimed"] = punter
         if (punter != self.punter):
             self.availableGraph.remove_edge(source, target)
         else:
-            self.availableGraph.edge[source][target]["claimed"] = punter
+            self.availableGraph.remove_edge(source,target)
             self.claimInScoringGraph(source, target)
 
     def getAvailableGraph(self):
@@ -121,8 +120,8 @@ class LambdaMap:
         plt.show(block = False)
         self.fig.canvas.draw()
 
-    def displayScore(self, score):
-        plt.title('map ' + str(score))
+    def displayScore(self, mapTitle, score):
+        plt.title(mapTitle + str(score))
 
     def close(self):
         plt.close('all')
