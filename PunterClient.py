@@ -3,13 +3,16 @@ import socket
 import json
 import sys
 import time
+import urllib2
+import BeautifulSoup as bs
 
 def printD(str):
     print >> sys.stderr, str
+    pass
 
 class OnlineClient:
 
-    def __init__(self, host, port):
+    def __init__(self, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.cb = lambda line: self.readCb(line)
         self.state = None
@@ -18,7 +21,7 @@ class OnlineClient:
         self.punter = None
         self.punters = None
         self.ready = None
-        self.connect(host, port)
+        self.connect("punter.inf.ed.ac.uk",port)
         self.timeout = 10.0
         self.timeStart = 0
 
@@ -39,7 +42,8 @@ class OnlineClient:
                 retry -= 1
         if (retry == 0):
             printD("can't connect")
-            exit(0)
+            raise IOError()
+
         self.write({"me":"LucB"})
 
     def write(self, dict):
@@ -80,3 +84,47 @@ class OnlineClient:
             self.state.punters = self.punters
             self.write({"ready": self.punter})
             self.ready = True
+
+
+class StatusDownloader:
+
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def getStatus(self):
+        response = urllib2.urlopen('http://punter.inf.ed.ac.uk/status.html')
+        html = response.read()
+        soup = bs.BeautifulSoup(html)
+        soup.prettify()
+        tables = soup.findAll('table')
+        for table in tables:
+            if (table["class"] == "table table-bordered"):
+                statusTable = table
+        tables = []
+        for line in statusTable.findAll('tr'):
+            list = []
+            for entry in line.findAll('td'):
+                list.append(entry.text)
+            tables.append(list)
+        dict={}
+        for line in tables:
+            if len(line) == 6:
+                if len(line[0].split(' ')) == 4:
+                    #if game is waiting for punters
+                    puntersLeft = int(line[0].split(' ')[3].strip('(').strip(')').split('/')[1]) - \
+                                  int(line[0].split(' ')[3].strip('(').strip(')').split('/')[0])
+                    level = line[5]
+                    optionsstr = line[2]
+                    timeout = int(line[3].split(' ')[0])
+                    port = int(line[4])
+
+                    if (puntersLeft == 1):
+                        if not dict.has_key(level):
+                            dict[level] = {optionsstr : {}}
+
+                        if not dict[level].has_key(optionsstr):
+                            dict[level][optionsstr] = {timeout : {}}
+
+                        dict[level][optionsstr][timeout] = port
+
+        return dict

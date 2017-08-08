@@ -2,14 +2,18 @@
 import signal
 from model import River
 from PunterClient import OnlineClient
+from PunterClient import StatusDownloader
+
 import sys
 import time
+import getopt
 
 def signal_handler(signal, frame):
     raise IOError()
 
 def printD(str):
     print >> sys.stderr, str
+    pass
 
 class LambdaPunter:
 
@@ -87,15 +91,59 @@ class LambdaPunter:
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
-    printD("starting..")
-    client = OnlineClient("punter.inf.ed.ac.uk",9003)
-    game = LambdaPunter(client)
-    try:
-        game.start()
-    except IOError as e:
-        print e
+    argv = sys.argv[1:]
+    ports = []
+    timeout = None
 
-    game.close()
-    client.sock.close()
+    try:
+        opts, args = getopt.getopt(argv, "hp:t:")
+    except getopt.GetoptError:
+        print 'punter.py [-h -p:port]'
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print 'punter.py [-h -p:port]'
+            sys.exit()
+        elif opt == "-p":
+            ports = [arg]
+        elif (opt == "-t"):
+            timeout = int(arg)
+
+    gamesToPlay = []
+    if ports == []:
+        status = StatusDownloader().getStatus()
+        if status == None:
+            print "can't connect"
+            exit(-2)
+        for map in status.keys():
+            #for now, option shall be ''
+            optionFilter = ''
+            for option in status[map]:
+                if option == optionFilter:
+                    if not timeout:
+                        for timeoutiter in status[map][option]:
+                            gamesToPlay.append({"map":map, "options":option, "timeout":timeoutiter, "port":status[map][option][timeoutiter]})
+                    else:
+                        if (status[map][option].has_key(timeout)):
+                            gamesToPlay.append({"map": map, "options": option, "timeout": timeout,
+                                                "port": status[map][option][timeout]})
+
+    print ("listing games : ")
+    for game in gamesToPlay:
+        print str(game)
+
+    for gameToPlay in gamesToPlay:
+        print "starting " + str(gameToPlay)+ " on port "+str(gameToPlay["port"])
+        client = OnlineClient(gameToPlay["port"])
+        game = LambdaPunter(client)
+        client.timeout = gameToPlay["timeout"]
+        try:
+            game.start()
+        except IOError as e:
+            print e
+
+        print "game : " + str(gameToPlay) +" score : " + str(game.map.scores[game.client.punter])
+        game.close()
+        client.sock.close()
 
     printD("exit correctly")

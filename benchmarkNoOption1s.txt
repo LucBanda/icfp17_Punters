@@ -1,0 +1,36 @@
+{'map': u'tube.json', 'options': u'', 'timeout': 1, 'port': 9255}
+{'map': u'gothenburg-sparse.json', 'options': u'', 'timeout': 1, 'port': 9399}
+{'map': u'nara-sparse.json', 'options': u'', 'timeout': 1, 'port': 9327}
+{'map': u'sample.json', 'options': u'', 'timeout': 1, 'port': 9003}
+{'map': u'edinburgh-sparse.json', 'options': u'', 'timeout': 1, 'port': 9291}
+{'map': u'Sierpinski-triangle.json', 'options': u'', 'timeout': 1, 'port': 9075}
+{'map': u'oxford.json', 'options': u'', 'timeout': 1, 'port': 9363}
+{'map': u'boston-sparse.json', 'options': u'', 'timeout': 1, 'port': 9219}
+{'map': u'circle.json', 'options': u'', 'timeout': 1, 'port': 9111}
+{'map': u'lambda.json', 'options': u'', 'timeout': 1, 'port': 9039}
+{'map': u'randomMedium.json', 'options': u'', 'timeout': 1, 'port': 9147}
+{'map': u'randomSparse.json', 'options': u'', 'timeout': 1, 'port': 9183}
+starting {'map': u'tube.json', 'options': u'', 'timeout': 1, 'port': 9255} on port 9255
+game : {'map': u'tube.json', 'options': u'', 'timeout': 1, 'port': 9255} score : 453
+starting {'map': u'gothenburg-sparse.json', 'options': u'', 'timeout': 1, 'port': 9399} on port 9399
+game : {'map': u'gothenburg-sparse.json', 'options': u'', 'timeout': 1, 'port': 9399} score : 4168
+starting {'map': u'nara-sparse.json', 'options': u'', 'timeout': 1, 'port': 9327} on port 9327
+game : {'map': u'nara-sparse.json', 'options': u'', 'timeout': 1, 'port': 9327} score : 532
+starting {'map': u'sample.json', 'options': u'', 'timeout': 1, 'port': 9003} on port 9003
+game : {'map': u'sample.json', 'options': u'', 'timeout': 1, 'port': 9003} score : 27
+starting {'map': u'edinburgh-sparse.json', 'options': u'', 'timeout': 1, 'port': 9291} on port 9291
+game : {'map': u'edinburgh-sparse.json', 'options': u'', 'timeout': 1, 'port': 9291} score : 1220
+starting {'map': u'Sierpinski-triangle.json', 'options': u'', 'timeout': 1, 'port': 9075} on port 9075
+game : {'map': u'Sierpinski-triangle.json', 'options': u'', 'timeout': 1, 'port': 9075} score : 1255
+starting {'map': u'oxford.json', 'options': u'', 'timeout': 1, 'port': 9363} on port 9363
+game : {'map': u'oxford.json', 'options': u'', 'timeout': 1, 'port': 9363} score : 330
+starting {'map': u'boston-sparse.json', 'options': u'', 'timeout': 1, 'port': 9219} on port 9219
+game : {'map': u'boston-sparse.json', 'options': u'', 'timeout': 1, 'port': 9219} score : 1237
+starting {'map': u'circle.json', 'options': u'', 'timeout': 1, 'port': 9111} on port 9111
+game : {'map': u'circle.json', 'options': u'', 'timeout': 1, 'port': 9111} score : 244
+starting {'map': u'lambda.json', 'options': u'', 'timeout': 1, 'port': 9039} on port 9039
+game : {'map': u'lambda.json', 'options': u'', 'timeout': 1, 'port': 9039} score : 154
+starting {'map': u'randomMedium.json', 'options': u'', 'timeout': 1, 'port': 9147} on port 9147
+game : {'map': u'randomMedium.json', 'options': u'', 'timeout': 1, 'port': 9147} score : 774
+starting {'map': u'randomSparse.json', 'options': u'', 'timeout': 1, 'port': 9183} on port 9183
+game : {'map': u'randomSparse.json', 'options': u'', 'timeout': 1, 'port': 9183} score : 453
