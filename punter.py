@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import signal
-from model import River
 from PunterClient import OnlineClient
 from PunterClient import StatusDownloader
 
