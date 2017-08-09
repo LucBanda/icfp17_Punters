@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 import signal
-from PunterClient import OnlineClient
-from PunterClient import StatusDownloader
-
 import sys
 import time
 import getopt
+from PunterClient import OnlineClient
+from PunterClient import StatusDownloader
+
+
 
 def signal_handler(signal, frame):
     raise IOError()
@@ -15,7 +16,6 @@ def printD(str):
     pass
 
 class LambdaPunter:
-
     def __init__(self, client):
         self.client = client
         self.map = client.state
@@ -64,6 +64,8 @@ if __name__ == '__main__':
     argv = sys.argv[1:]
     timeout = None
     options = u""
+    gamesToPlay = []
+    port = None
 
     try:
         opts, args = getopt.getopt(argv, "ht:o:m:p:")
@@ -71,9 +73,6 @@ if __name__ == '__main__':
         print 'punter.py [-h -p port -m map -o options -t timeout]'
         sys.exit(2)
 
-    gamesToPlay = []
-
-    port = None
     for opt, arg in opts:
         if opt == '-h':
             print '-h -p port -m map -o options -t timeout'
@@ -88,17 +87,12 @@ if __name__ == '__main__':
             port = int(arg)
 
     if (port == None):
+        #play with online server
         status = StatusDownloader().getStatus()
         if status == None:
             print "can't connect"
             exit(-2)
-
         maps = status.keys()
-
-        #play with online server
-        if options == []:
-            options = u""
-
         for map in maps:
             for option in status[map]:
                 if option == options:
@@ -109,11 +103,9 @@ if __name__ == '__main__':
                         if (status[map][option].has_key(timeout)):
                             gamesToPlay.append({"map": map, "options": option, "timeout": timeout,
                                                 "port": status[map][option][timeout]})
-
         print ("listing games : ")
         for game in gamesToPlay:
             print str(game)
-
         for gameToPlay in gamesToPlay:
             client = OnlineClient("punter.inf.ed.ac.uk", gameToPlay["port"])
             game = LambdaPunter(client)
@@ -135,8 +127,7 @@ if __name__ == '__main__':
         client = OnlineClient("localhost", port)
         game = LambdaPunter(client)
         client.title = "local map"
-
-        client.timeout = 1
+        client.timeout = 10
         try:
             game.start()
             print "game : " + str(gameToPlay) + " score : " + str(game.map.scores[game.client.punter])
