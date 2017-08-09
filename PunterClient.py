@@ -11,10 +11,11 @@ def printD(str):
     pass
 
 class OnlineClient:
-
+    #use this client to connect to a lambda punter server
     def __init__(self, addr, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.cb = lambda line: self.readCb(line)
+        #register local callback for handshake
+        self.cb = lambda line: self.handshakeCb(line)
         self.state = None
         self.handshake = None
         self.setup = False
@@ -25,14 +26,18 @@ class OnlineClient:
         self.timeout = 10.0
         self.timeStart = 0
 
+#   this function returns the timeout updated
     def getTimeout(self):
         return self.timeout - (time.time() - self.timeStart)
 
+#   this is used to update the cb
     def setReadCb(self, cb):
         self.cb = cb
 
+#connects the socket
     def connect(self, host, port):
         retry = 50
+        #retry connection 50 times in case of fail
         while retry:
             try:
                 self.sock.connect((host, port))
@@ -44,49 +49,73 @@ class OnlineClient:
             printD("can't connect")
             raise IOError()
 
+        #start handshake
         self.write({"me":"LucB"})
 
+#   this function sends a dictionnary to the server
     def write(self, dict):
+        #get json from dict
         strToSend = json.dumps(dict)
+        #remove spaces
         strToSend.replace(" ", "")
+        #forge protocol s:json
         strToSend = str(len(strToSend)) + ":" + strToSend
+        #trace execution
         printD("sending : " + strToSend)
+        #send to the server
         self.sock.send(strToSend)
 
+#this function blocks and read the next answer from the server
     def readNext(self):
         line = ""
         while True:
+            #receive one char and append to the line
             line += self.sock.recv(1)
+            #when size is received, decode it
             if (line.endswith(":")):
                 line = line.split(":")[0]
                 size = int(line)
+
+                # and wait for the next <size> bytes
                 line = self.sock.recv(size)
                 while len(line) != size:
                     line += self.sock.recv(size - len(line))
+
+                #once received, print them
                 printD(str(size) + "," + str(len(line)) + ":" + line)
+
+                #call the reception callback with a dictionary loaded from json
                 return self.cb(json.loads(line))
 
-    def readCb(self, event):
+#   reception callback to perform the handshake
+    def handshakeCb(self, event):
+        #iterate over received items
         for key,value in event.iteritems():
             if (key == u'you'):
+                # this is ack of 'me'
                 self.handshake = True
             if (key == u'punter'):
+                #this is my punter id
                 self.punter = value
             if (key == u'punters'):
+                #this is the list of punters
                 self.punters = value
             if (key == u'map'):
+                #this is the map
                 self.state = value
         if (self.punter != None) \
                 and (self.handshake != None) \
                 and (self.state != None)\
                 and (self.punters != None):
+            #when everything is received, instanciate the model LambdaMap
             self.state = LambdaMap(self, self.state, self.punters, self.punter)
+            # send ready to server
             self.write({"ready": self.punter})
             self.ready = True
 
-
 class StatusDownloader:
-
+# this class connects to the server to get the list of servers and return a dictionary with all accessible serveurs
+# this server is down currently
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 

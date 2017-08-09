@@ -27,21 +27,26 @@ class LambdaPunter:
         while not shouldStop:
             shouldStop = self.client.readNext()
             if self.client.ready:
+                #when client is ready, "steal" the reception cb, this should be avoided
                 self.map = client.state
                 self.client.setReadCb(lambda line: self.eventIncoming(line))
 
     def applyMove(self, moves):
         for move in moves:
             if "claim" in move.keys():
+                #claim rivers for each claim received
                 self.map.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
 
     def eventIncoming(self, event):
+        #starts the timeout
         self.client.timeStart = time.time()
-
         for key,value in event.iteritems():
             if (key == u'move'):
+                #when received a move, apply it
                 self.applyMove(value["moves"])
+                #ask the next move to the model
                 move = self.map.getNextMove()
+                #check if move was found
                 if (move):
                     self.client.write({"claim":move})
                 else:
@@ -49,6 +54,7 @@ class LambdaPunter:
                     self.client.write({"pass":{"punter":self.client.punter}})
                 printD("playing at :" + str(self.client.getTimeout()))
             if (key == u'stop'):
+                #when received a stop, register the scores
                 for punterScore in value["scores"]:
                     self.map.setScores(punterScore["punter"], punterScore["score"])
                 printD(str(self.map.scores))
@@ -124,16 +130,22 @@ if __name__ == '__main__':
 
     else:
         #play with local server provided by compete at http://git.kthxb.ai/compete/icfpc2017
+        #instanciate and connect online client
         client = OnlineClient("localhost", port)
+        #instanciate a punter
         game = LambdaPunter(client)
+        #set the parameters of the client
         client.title = "local map"
-        client.timeout = 1
+        client.timeout = 2
         try:
+            #start the game
             game.start()
+            #if game exits correctly, it means game has ended
             print "local game score : " + str(game.map.scores[game.client.punter])
             game.close()
             client.sock.close()
         except IOError as e:
+            #this happens in case of connection error
             print e
             game.close()
             client.sock.close()
