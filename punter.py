@@ -130,7 +130,7 @@ if __name__ == '__main__':
         client.timeout = 10
         try:
             game.start()
-            print "game : " + str(gameToPlay) + " score : " + str(game.map.scores[game.client.punter])
+            print "local game score : " + str(game.map.scores[game.client.punter])
             game.close()
             client.sock.close()
         except IOError as e:

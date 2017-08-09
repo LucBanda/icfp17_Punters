@@ -21,44 +21,62 @@ class Site:
 
 class LambdaMap:
     def __init__(self, client, map, punters, punter):
+        #initialize variables
         self.mines = []
         self.punters = punters
         self.punter = punter
         self.client = client
         self.currentScore = 0
-
         self.fig = plt.figure(figsize=(10, 30))
+        self.scores = {}
+        self.graph = None
+        self.scoringGraph = None
+        self.endpoints = None
 
+        #protect function
         if map == None:
             return
 
+        # this is the main graph, containing all sites and rivers
+        # edges taken by opponents are removed
         self.graph = nx.Graph()
 
+        #populate sites in main graph
         for site in map["sites"]:
             self.graph.add_node(site["id"])
             self.graph.node[site["id"]]["site"] = Site(site["id"], site["x"], site["y"])
 
+        #populate edges in main graph
         self.graph.add_edges_from([(river["source"], river["target"]) for river in map["rivers"]])
 
+        #get mines in self.mines
         self.mines = map["mines"]
+
+        #add mines to main graph
         for mine in self.mines:
             self.graph.node[mine]["site"].isMine = True
 
-        self.scores = {}
-        self.scoringGraph = nx.Graph()
-
-        start = time.time()
+        # precalculate score for all site and all mines as it is static
         for mine in self.mines:
             list = nx.single_source_shortest_path_length(self.graph, mine)
             nx.set_node_attributes(self.graph, "pathForMine_" + str(mine), list)
 
-            self.scoringGraph.add_node(mine, attr_dict=self.graph.node[mine])
-            self.scoringGraph.node[mine]["score"] = {}
+        #create scoring graph, this graph will maintain current taken path
+        self.scoringGraph = nx.Graph()
 
+        #import mines in scoring graph
+        for mine in self.mines:
+            self.scoringGraph.add_node(mine, attr_dict=self.graph.node[mine])
+
+        self.endpoints = self.scoringGraph.nodes()
+
+        #initialize number of turns
         self.leftMoves = nx.number_of_edges(self.graph) / self.punters
 
+        #display map
         self.displayMap()
 
+    #this function allows to claim a river in scoringGraph only. Used to test paths
     def claimInScoringGraph(self, source, target):
 
         if not self.scoringGraph.has_node(target):
@@ -76,6 +94,35 @@ class LambdaMap:
         if punter == self.punter:
             self.claimInScoringGraph(source, target)
             self.displayMove(self.punter, source, target)
+        self.updateEndpoints(source, target, punter)
+
+    def updateEndpoints(self, source, target, punter):
+        #add /remove endpoints
+        stillneighbors = False
+        scoringGraphEdges = self.scoringGraph.edges()
+        # search in available neighbors of target
+        for neighbor in self.graph.neighbors(source):
+            # neighbor is eligible if not already a endpoint and not in scoring graph
+            if not (source, neighbor) in scoringGraphEdges:
+                # then add the neighbor as an endpoint
+                stillneighbors = True
+                break
+        if not stillneighbors and source in self.endpoints:
+            # if there is no eligible neighbor anymore, remove the endpoint
+            self.endpoints.remove(source)
+
+        stillneighbors = False
+        for neighbor in self.graph.neighbors(target):
+            # neighbor is eligible if not already a endpoint and not in scoring graph
+            if not (target, neighbor) in scoringGraphEdges:
+                # then add the neighbor as an endpoint
+                stillneighbors = True
+                break
+        if stillneighbors and not target in self.endpoints and punter == self.punter:
+            # if there is no eligible neighbor anymore, remove the endpoint
+            self.endpoints.insert(0, target)
+        elif not stillneighbors and target in self.endpoints:
+            self.endpoints.remove(target)
 
     def calculateScore(self):
         score = 0
@@ -101,6 +148,9 @@ class LambdaMap:
         plt.plot([site["site"].x for site in self.graph.node.values() if site["site"].isMine],
                  [site["site"].y for site in self.graph.node.values() if site["site"].isMine], 'ro', label="mine")
 
+        #for (node, attr) in self.graph.nodes(data = True):
+        #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+
         plt.show(block=False)
 
     def displayMove(self, punter, source, target):
@@ -123,10 +173,10 @@ class LambdaMap:
 
         scoringNodes = self.scoringGraph.nodes()
         i = 0
-        for source in scoringNodes:
+        for source in self.endpoints:
+            if i > 30:
+                break;
             for target in self.graph.neighbors(source):
-                i += 1
-
                 self.claimInScoringGraph(source, target)
 
                 if not target in scoringNodes:
@@ -139,18 +189,17 @@ class LambdaMap:
                     self.scoringGraph.remove_edge(source, target)
                     self.scoringGraph.remove_node(target)
                 else:
-                    deltascore = self.calculateScore() - self.currentScore
+                    score = self.calculateScore()
+                    deltascore = score - self.currentScore
                     self.scoringGraph.remove_edge(source, target)
 
-
-
-                if bestScore < deltascore:
+                if bestScore <= deltascore:
                     bestScore = deltascore
                     bestMove = (source, target)
-                if self.client.getTimeout() < 0.5:
-                    break
-            if self.client.getTimeout() < 0.5:
-                break
+
+                if deltascore != 0:
+                    i+=1
+
         printD("loops " + str(i))
         self.currentScore += bestScore
 
@@ -159,7 +208,7 @@ class LambdaMap:
 
         if bestMove != None:
             move["source"] = bestMove[0]
-            move["target"] = bestMove[1]
+            move["target"] =     bestMove[1]
         else:
             move = None
 
@@ -172,3 +221,39 @@ class LambdaMap:
 
     def close(self):
         plt.close('all')
+
+
+class Futures(LambdaMap):
+
+    def __init__(self, client, map, punter, punters):
+        super(LambdaMap).__init__(client, map, punter, punters)
+        average = nx.average_shortest_path_length(self.graph)
+
+        mineStart = self.mines[0]
+        currentNode = self.graph.node[mineStart]
+        maxiteration = average
+        while currentNode["pathForMine_"+str(mineStart)] < average and maxiteration:
+            maxiteration -= 1
+            for neighbor in self.graph.neighbors(currentNode):
+                if neighbor["pathForMine_"+str(mineStart)] > currentNode["pathForMine_"+str(mineStart)]:
+                    currentNode = neighbor
+                    break
+        if (maxiteration == 0):
+            printD("maxiteration reached")
+
+        self.bet = (mineStart, currentNode)
+
+
+    def getNextMove(self):
+        if (self.bet == None):
+            return super(LambdaMap).getNextMove()
+        else:
+            target = self.bet[1]
+            start = self.bet[0]
+            nodeList = nx.shortest_path(self.graph, start, tartget)
+            currentStartMove = nodeList[0]
+            for node in nodeList:
+                if currentStartMove != node and not (currentStartMove, node) in self.scoringGraph.edges():
+                    return (currentStartMove, node)
+
+
