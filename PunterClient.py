@@ -12,7 +12,7 @@ def printD(str):
 
 class OnlineClient:
 
-    def __init__(self, port):
+    def __init__(self, addr, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.cb = lambda line: self.readCb(line)
         self.state = None
@@ -21,7 +21,7 @@ class OnlineClient:
         self.punter = None
         self.punters = None
         self.ready = None
-        self.connect("punter.inf.ed.ac.uk",port)
+        self.connect(addr, port)
         self.timeout = 10.0
         self.timeStart = 0
 
