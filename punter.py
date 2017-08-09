@@ -127,7 +127,7 @@ if __name__ == '__main__':
         client = OnlineClient("localhost", port)
         game = LambdaPunter(client)
         client.title = "local map"
-        client.timeout = 10
+        client.timeout = 1
         try:
             game.start()
             print "local game score : " + str(game.map.scores[game.client.punter])

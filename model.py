@@ -105,8 +105,9 @@ class LambdaMap:
             # neighbor is eligible if not already a endpoint and not in scoring graph
             if not (source, neighbor) in scoringGraphEdges:
                 # then add the neighbor as an endpoint
-                stillneighbors = True
-                break
+                if not neighbor in self.scoringGraph.nodes():
+                    stillneighbors = True
+                    break
         if not stillneighbors and source in self.endpoints:
             # if there is no eligible neighbor anymore, remove the endpoint
             self.endpoints.remove(source)
@@ -115,9 +116,11 @@ class LambdaMap:
         for neighbor in self.graph.neighbors(target):
             # neighbor is eligible if not already a endpoint and not in scoring graph
             if not (target, neighbor) in scoringGraphEdges:
-                # then add the neighbor as an endpoint
-                stillneighbors = True
-                break
+                # then add the target as an endpoint
+                if not neighbor in self.scoringGraph.nodes():
+                    stillneighbors = True
+                    break
+
         if stillneighbors and not target in self.endpoints and punter == self.punter:
             # if there is no eligible neighbor anymore, remove the endpoint
             self.endpoints.insert(0, target)
@@ -174,8 +177,6 @@ class LambdaMap:
         scoringNodes = self.scoringGraph.nodes()
         i = 0
         for source in self.endpoints:
-            if i > 30:
-                break;
             for target in self.graph.neighbors(source):
                 self.claimInScoringGraph(source, target)
 
@@ -196,11 +197,11 @@ class LambdaMap:
                 if bestScore <= deltascore:
                     bestScore = deltascore
                     bestMove = (source, target)
+                if (self.client.getTimeout() < 0.01):
+                    break
+            if (self.client.getTimeout() < 0.01):
+                break
 
-                if deltascore != 0:
-                    i+=1
-
-        printD("loops " + str(i))
         self.currentScore += bestScore
 
         self.leftMoves -= 1
