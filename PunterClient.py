@@ -1,4 +1,3 @@
-from model import LambdaPunter
 import socket
 import json
 import sys

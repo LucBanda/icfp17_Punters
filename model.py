@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import sys
 import time
+import copy
 
 def print_err(str):
     print >> sys.stderr, str
@@ -9,11 +10,11 @@ def print_err(str):
 
 
 class Site:
-    def __init__(self, id, x, y, ):
+    def __init__(self, id, x, y, isMine=False):
         self.id = id
         self.x = x
         self.y = y
-        self.isMine = False
+        self.isMine = isMine
 
 # noinspection PyClassHasNoInit
 class DiscoveryGraph(nx.DiGraph):
@@ -25,7 +26,7 @@ class DiscoveryGraph(nx.DiGraph):
     def explore(self, timeout):
         currentNode = self.head
         for source in currentNode.endpoints:
-            for target in currentNode.graph.neighbors(source):
+            for target in currentNode.fullGraph.neighbors(source):
                 # create a new node by exploring it
                 startTime = time.time()
                 self.evolve_from(currentNode, source, target)
@@ -48,13 +49,14 @@ class DiscoveryGraph(nx.DiGraph):
             if moveSource == source and moveTarget == target:
                 self.head = targetNode
                 break
+        self.clear()
+        self.add_node(self.head, attr_dict={'graph':self.head})
 
     def evolve_from(self, scoringGraph, source, target):
-        newGraph = ScoringGraph(scoringGraph.graph, scoringGraph)  #copy the source scoringGraph
+        newGraph = ScoringGraph(scoringGraph.fullGraph, scoringGraph)  #copy the source scoringGraph
         newGraph.claim(source, target)  # claim the (source, target) in a new scoring graph
         if not newGraph in self.nodes():  # if the result is already known
-            newGraph.evolve_from(scoringGraph)  # else update the new graph with datas
-            self.add_node(newGraph)  #add the new node
+            self.add_node(newGraph, attr_dict={'graph':newGraph})  #add the new node
         self.add_path([scoringGraph, newGraph],  weight = 0, move= {"claim": (source, target)})  #add the edge
 
 
@@ -69,25 +71,55 @@ class DiscoveryGraph(nx.DiGraph):
         nx.draw_networkx_nodes(graph, pos=nx.spectral_layout(self), nodelist=[self.head], node_color='g')
 
         if online :
-            self.head.graph.fig.canvas.draw()
+            self.head.fullGraph.fig.canvas.draw()
         plt.show(block=False)  # show non blocking
 
+class Path:
+    def __init__(self, mine):
+        self.mines=[mine]
+        self.nodes=[mine]
+        self.score=0
+
+    def __add__(self, other):
+        third = Path(None)
+        third.mines = self.mines + list(set(other.mines) - set(self.mines))  # append 2 lists with no duplicates
+        third.nodes = self.nodes + list(set(other.nodes) - set(self.nodes))
+        return third
+
+    def __deepcopy__(self, memodict={}):
+        ret = Path(None)
+        ret.score = self.score
+        ret.mines = self.mines[:]
+        ret.nodes = self.nodes[:]
+        return ret
+
 class ScoringGraph(nx.Graph):
+    # node is:
+    # key : 'site.id'
+    # 'site'
+    # 'path'
+    # "pathForMine_%d"
+
     def __init__(self, parentGraph, other=None):
         if other is None:
             nx.Graph.__init__(self)
             self.explored = False
-            self.graph = parentGraph
-            self.endpoints = parentGraph.mines  # endpoints are mines at the very beginning
+            self.fullGraph = parentGraph
             self.score = 0
-            # import mines in scoring graph
-            for mine in self.endpoints:  # import mines as nodes of scoring graph
-                self.add_node(mine, attr_dict=parentGraph.node[mine])
+            self.pathes = {}
+            for mine in self.fullGraph.mines:
+                self.pathes[mine] = Path(mine)  # import mines in pathes as id
+                dict = parentGraph.node[mine].copy()
+                dict['path'] = self.pathes[mine]
+                self.add_node(mine, attr_dict=dict)  # import mines as nodes of scoring graph
+            self.endpoints = self.fullGraph.mines
         else:
             nx.Graph.__init__(self, other)
             self.explored = False
-            self.graph = parentGraph
-            self.endpoints = other.endpoints
+            self.fullGraph = parentGraph
+            self.score = other.score
+            self.pathes = copy.deepcopy(other.pathes)
+            self.endpoints = other.endpoints[:]
 
     # make it comparable with __eq__ and __hash__
     def __eq__(self, other):
@@ -97,96 +129,72 @@ class ScoringGraph(nx.Graph):
         return hash(tuple(sorted(self.edges())))
 
     def claim(self, source, target):
-        self.pending_source = source
-        self.pending_target = target
-        for nodeToClaim in [source, target]:  # loop over each node
-            if not self.has_node(nodeToClaim):  # if node is not in graph
-                nodeAttr = self.graph.node[nodeToClaim]  # getAttributes in nodeSource
-                self.add_node(nodeToClaim, attr_dict=nodeAttr)  # add the node
-        self.add_edge(source, target)  # add the claimed edge to the scoring graph
+        assert source in self.nodes() #make sure source is in graph
 
-    # noinspection PyAttributeOutsideInit
-    def calculate_score(self):
-        score = 0
-        for (node, attr) in self.nodes(data=True):  # score is calculated for each node
-            for mine in self.graph.mines:  # loop over mines
-                if nx.has_path(self, node, mine):  # if mine has path to the node; this seems costly
-                    score += attr["pathForMine_" + str(mine)] ** 2  # add the score
-        return  score  # return the score
+        if not self.has_node(target):  # if target is not in graph
+            nodeAttr = self.fullGraph.node[target]  # getAttributes in node
+            self.add_node(target, attr_dict=nodeAttr.copy())  # add the node
+            self.add_edge(source, target)  # add the claimed edge to the scoring graph
+            nodesource = self.node[source]  # append target to the same path as source
+            nodeTarget = self.node[target]  # get nodeSource and nodeTarget
+            path = self.pathes[nodesource["path"].mines[0]]  # get the current path it belongs to
+            path.nodes.append(target)  # append the target to the current path
+            for mine in path.mines:  # calculate associated score for each mine of the path
+                score = nodeTarget["pathForMine_"+str(mine)]**2
+                path.score += score  # increase the path score
+                self.score += score  # and the graph score
+            self.node[target]["path"] = path  # store the path in the node
+        else:  #if target is already in graph
+            assert target in self.nodes()  # make sure of it
+            self.add_edge(source, target)  # add the claimed edge to the scoring graph
+            nodeSource = self.node[source]  # append target to the same path as source
+            nodeTarget = self.node[target]  # get nodeSource and nodeTarget
+            sourcePath = self.pathes[nodeSource["path"].mines[0]]# target path is a bit odd to be up to date,
+            targetPath = self.pathes[nodeTarget["path"].mines[0]] # it needs to refer to the current path of it's first mine path
+            if (target in self.fullGraph.mines):
+                pass
+            if sourcePath != targetPath:  # if source and target does not share the same path
+                #add one path to the other
+                self.score = self.score - targetPath.score - sourcePath.score
+                newPath = sourcePath + targetPath
+                for nodeId in newPath.nodes:  # update score for new path
+                    for mine in newPath.mines:
+                        if nodeId not in self.nodes():
+                            pass
+                        score = self.node[nodeId]["pathForMine_" + str(mine)]**2
+                        newPath.score += score
+                        self.score += score
 
-    def evolve_from(self, sourceGraph):
-        self.graph = sourceGraph.graph
-        self.explored = False
-        #calculate score
-        if self.pending_target not in sourceGraph.nodes():
-            # if target is not in scoringNode, it will add it's score for each mine it will be linked to
-            targetNode = self.node[self.pending_target]
-            deltascore = 0
-            # deltascore is the sum of the score for each mine
-            for mine in self.graph.mines:
-                if nx.has_path(self, self.pending_target, mine):
-                    deltascore += targetNode["pathForMine_" + str(mine)] ** 2
-            self.score = sourceGraph.score + deltascore
-        else:
-            # target is already in the graph, difficult to do the delta so recalculate all
-            # target is already in the graph, difficult to do the delta so recalculate all
-            self.score = self.calculate_score()
+                for mine in newPath.mines:
+                    self.pathes[mine] = newPath
 
-        self.evolve_endpoints_from(sourceGraph, self.pending_target, self.pending_source)
+        self.update_endpoints(source)
+        self.update_endpoints(target)
 
-        self.pending_target = None
-        self.pending_source = None
-
-    def evolve_endpoints_from(self, sourceGraph, source, target):
-        # add /remove endpoints
+    def update_endpoints(self, source):
         stillneighbors = False
-        scoringGraphEdges = sourceGraph.edges()
-        retEndpoints = sourceGraph.endpoints[:]
-
-        # search in available neighbors of source
-        for neighbor in self.graph.neighbors(source):
-            # neighbor is eligible if not already a endpoint and not in scoring graph
-            if not (source, neighbor) in scoringGraphEdges:
-                # then add the neighbor as an endpoint
-                if neighbor not in sourceGraph.nodes():
-                    stillneighbors = True
-                    break
-        # if there is no eligible neighbor anymore, remove the endpoint
-        if not stillneighbors and source in retEndpoints:
-            retEndpoints.remove(source)
-        elif stillneighbors and source not in retEndpoints:
-            # if there is no eligible neighbor anymore, remove the endpoint
-            retEndpoints.insert(0, source)
-
-        stillneighbors = False
-        # search in available neighbors of target
-        for neighbor in self.graph.neighbors(target):
-            # neighbor is eligible if not already a endpoint and not in scoring graph
-            if (target, neighbor) not in scoringGraphEdges:
-                # then add the target as an endpoint
-                if neighbor not in self.nodes():
-                    stillneighbors = True
-                    break
-
-        if stillneighbors and target not in retEndpoints:
-            # if there is no eligible neighbor anymore, remove the endpoint
-            retEndpoints.insert(0, target)
-        elif not stillneighbors and target in retEndpoints:
-            # if eligible neighbor, add the endpoint first because
-            # it has a lot of chance to make a high score again
-            retEndpoints.remove(target)
-
-        self.endpoints = retEndpoints
+        for neighbor in self.fullGraph.neighbors(source):
+            if neighbor not in self.pathes[self.node[source]['path'].mines[0]].nodes:
+                stillneighbors = True
+                break
+        if not stillneighbors and source in self.endpoints:
+            self.endpoints.remove(source)
+        elif stillneighbors and source not in self.endpoints:
+            self.endpoints.insert(0,source)
 
     def displayMove(self, source, target):
         sourceSite = self.node[source]["site"]  # get source and target in the graph
         targetSite = self.node[target]["site"]
         plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], 'r-', linewidth=3)  # plot them
-        self.graph.fig.canvas.draw()  # update figure
+        self.fullGraph.fig.canvas.draw()  # update figure
 
 class FullGraph(nx.Graph):
     # this is the main graph, containing all sites and rivers
     # edges taken by opponents are removed
+    # node is:
+    # key : 'site.id'
+    # 'site'
+    # "pathForMine_%d"
     def __init__(self, map):
         nx.Graph.__init__(self)
         for site in map["sites"]:  # populate sites in main graph
@@ -232,6 +240,7 @@ class LambdaPunter:
         self.client = client
         self.scores = {}
         client.set_strategycb(lambda line: self.eventIncoming(line))
+        self.leftMoves = 0
 
     def applyMove(self, moves):
         for move in moves:
@@ -277,13 +286,13 @@ class LambdaPunter:
         plt.close('all')
 
     def claimRiver(self, punter, source, target):
-        assert True
+        assert False
 
     def getNextMove(self):
-        assert True
+        assert False
 
     def setup_map(self, map):
-        assert True
+        assert False
 
 class DiscoveryStrategy(LambdaPunter):
     def setup_map(self, map):
@@ -291,7 +300,7 @@ class DiscoveryStrategy(LambdaPunter):
         scoringGraph = ScoringGraph(fullgraph)
         self.discoveryGraph = DiscoveryGraph(scoringGraph)
         self.leftMoves = nx.number_of_edges(fullgraph) / self.client.punters  # initialize number of turns
-        self.discoveryGraph.head.graph.display()  # display map
+        self.discoveryGraph.head.fullGraph.display()  # display map
         self.punter = self.client.punter
         self.punters = self.client.punters
 
@@ -300,8 +309,8 @@ class DiscoveryStrategy(LambdaPunter):
         timeStart = time.time()
         if punter == self.punter:  # if punter is player, evolve the scoringgraph
             self.discoveryGraph.claim(source, target)
-            self.discoveryGraph.head.displayMove(source, target)
-        self.discoveryGraph.head.graph.claim(source, target)  # remove the claimed river from the main graph
+            #self.discoveryGraph.head.displayMove(source, target)
+        self.discoveryGraph.head.fullGraph.claim(source, target)  # remove the claimed river from the main graph
         print_err("claiming time = " + str(time.time() - timeStart))
 
     # this function calculates the best next move to play
