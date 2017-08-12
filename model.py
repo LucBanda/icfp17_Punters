@@ -19,11 +19,10 @@ class Site:
 class DiscoveryGraph(nx.DiGraph):
     def __init__(self, scoringGraph):
         nx.DiGraph.__init__(self)
-        self.add_node(scoringGraph)  # register a new scoringGraph
+        self.add_node(scoringGraph, attr_dict={'graph': scoringGraph})  # register a new scoringGraph
         self.head = scoringGraph
 
     def explore(self, timeout):
-
         currentNode = self.head
         for source in currentNode.endpoints:
             for target in currentNode.graph.neighbors(source):
@@ -101,7 +100,7 @@ class ScoringGraph(nx.Graph):
         self.pending_source = source
         self.pending_target = target
         for nodeToClaim in [source, target]:  # loop over each node
-            if not self.has_node(nodeToClaim):  # if node is not is graph
+            if not self.has_node(nodeToClaim):  # if node is not in graph
                 nodeAttr = self.graph.node[nodeToClaim]  # getAttributes in nodeSource
                 self.add_node(nodeToClaim, attr_dict=nodeAttr)  # add the node
         self.add_edge(source, target)  # add the claimed edge to the scoring graph
@@ -118,6 +117,7 @@ class ScoringGraph(nx.Graph):
     def evolve_from(self, sourceGraph):
         self.graph = sourceGraph.graph
         self.explored = False
+        #calculate score
         if self.pending_target not in sourceGraph.nodes():
             # if target is not in scoringNode, it will add it's score for each mine it will be linked to
             targetNode = self.node[self.pending_target]
@@ -128,6 +128,7 @@ class ScoringGraph(nx.Graph):
                     deltascore += targetNode["pathForMine_" + str(mine)] ** 2
             self.score = sourceGraph.score + deltascore
         else:
+            # target is already in the graph, difficult to do the delta so recalculate all
             # target is already in the graph, difficult to do the delta so recalculate all
             self.score = self.calculate_score()
 
@@ -222,31 +223,86 @@ class FullGraph(nx.Graph):
         self.remove_edge(source, target)  # only remove the edge in the graph as it is not available anymore
 
 
-class LambdaMap:
-    def __init__(self, client, map, punters, punter):
+class LambdaPunter:
+    def __init__(self, client):
         # initialize variables
         self.mines = []
-        self.punters = punters
-        self.punter = punter
+        self.punters = None
+        self.punter = None
         self.client = client
         self.scores = {}
+        client.set_strategycb(lambda line: self.eventIncoming(line))
+
+    def applyMove(self, moves):
+        for move in moves:
+            if "claim" in move.keys():
+                # claim rivers for each claim received
+                self.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
+
+    def eventIncoming(self, event):
+        # starts the timeout
+        self.client.timeStart = time.time()
+        for key, value in event.iteritems():
+            if key == u'map':
+                self.setup_map(value)
+            if key == u'move':
+                # when received a move, apply it
+                self.applyMove(value["moves"])
+                # ask the next move to the model
+                move = self.getNextMove()
+                # check if move was found
+                if move:
+                    self.client.write(move)
+                else:
+                    print_err("did not find any move, passing")
+                    self.client.write({"pass": {"punter": self.client.punter}})
+                print_err("playing at :" + str(self.client.getTimeout()))
+            if key == u'stop':
+                # when received a stop, register the scores
+                for punterScore in value["scores"]:
+                    self.scores[punterScore["punter"]] = punterScore["score"]
+                    print_err(str(self.scores))
+                print_err("my Score : " + str(self.scores[self.client.punter]))
+                return True
+        return False
+
+    def displayScore(self, mapTitle, score):
+        plt.title(mapTitle + str(score) + " (left:" + str(self.leftMoves) + ")")
+
+    def setScores(self, punter, score):
+        self.scores[punter] = score
+
+    # noinspection PyMethodMayBeStatic
+    def close(self):
+        plt.close('all')
+
+    def claimRiver(self, punter, source, target):
+        assert True
+
+    def getNextMove(self):
+        assert True
+
+    def setup_map(self, map):
+        assert True
+
+class DiscoveryStrategy(LambdaPunter):
+    def setup_map(self, map):
         fullgraph = FullGraph(map)
         scoringGraph = ScoringGraph(fullgraph)
         self.discoveryGraph = DiscoveryGraph(scoringGraph)
-        self.leftMoves = nx.number_of_edges(fullgraph) / self.punters  # initialize number of turns
+        self.leftMoves = nx.number_of_edges(fullgraph) / self.client.punters  # initialize number of turns
         self.discoveryGraph.head.graph.display()  # display map
+        self.punter = self.client.punter
+        self.punters = self.client.punters
 
     # this function should be called when a river is claimed by a punter
     def claimRiver(self, punter, source, target):
         timeStart = time.time()
-        self.discoveryGraph.head.graph.claim(source, target)  # remove the claimed river from the main graph
         if punter == self.punter:  # if punter is player, evolve the scoringgraph
             self.discoveryGraph.claim(source, target)
             self.discoveryGraph.head.displayMove(source, target)
+        self.discoveryGraph.head.graph.claim(source, target)  # remove the claimed river from the main graph
         print_err("claiming time = " + str(time.time() - timeStart))
-    #   hold real scores at the end of the game
-    def setScores(self, punter, score):
-        self.scores[punter] = score
 
     # this function calculates the best next move to play
     def getNextMove(self):
@@ -263,10 +319,3 @@ class LambdaMap:
             bestMove = {"pass":{"punter":self.client.punter}}
         print bestMove
         return bestMove   # return the move
-
-    def displayScore(self, mapTitle, score):
-        plt.title(mapTitle + str(score) + " (left:" + str(self.leftMoves) + ")")
-
-    # noinspection PyMethodMayBeStatic
-    def close(self):
-        plt.close('all')

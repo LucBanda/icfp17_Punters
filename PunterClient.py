@@ -1,4 +1,4 @@
-from model import LambdaMap
+from model import LambdaPunter
 import socket
 import json
 import sys
@@ -17,7 +17,7 @@ class OnlineClient:
     def __init__(self, addr, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # register local callback for handshake
-        self.cb = lambda line: self.handshakeCb(line)
+        self.cb = lambda line: self.decodeCb(line)
         self.state = None
         self.handshake = None
         self.setup = False
@@ -91,12 +91,21 @@ class OnlineClient:
 
             #   reception callback to perform the handshake
 
-    def handshakeCb(self, event):
+    def set_strategycb(self, cb):
+        self.strategyCb = cb
+
+    def start(self):
+        shouldStop = False
+        while not shouldStop:
+            shouldStop = self.readNext()
+
+    def decodeCb(self, event):
         # iterate over received items
         for key, value in event.iteritems():
             if key == u'you':
                 # this is ack of 'me'
                 self.handshake = True
+                self.readySent = False
             if key == u'punter':
                 # this is my punter id
                 self.punter = value
@@ -111,10 +120,14 @@ class OnlineClient:
                 and (self.state is not None) \
                 and (self.punters is not None):
             # when everything is received, instanciate the model LambdaMap
-            self.state = LambdaMap(self, self.state, self.punters, self.punter)
             # send ready to server
-            self.write({"ready": self.punter})
-            self.ready = True
+            if not self.ready:
+                self.strategyCb({'map':self.state})
+                self.write({"ready": self.punter})
+                self.ready = True
+                return False
+            else:
+                return self.strategyCb(event)
 
 
 def getStatus():

@@ -4,7 +4,7 @@ import sys
 import time
 import getopt
 from PunterClient import OnlineClient, getStatus
-
+from model import DiscoveryStrategy
 
 # noinspection PyUnusedLocal,PyUnusedLocal
 def signal_handler(signal, frame):
@@ -14,59 +14,6 @@ def signal_handler(signal, frame):
 def printD(str):
     print >> sys.stderr, str
     pass
-
-
-class LambdaPunter:
-    def __init__(self, client):
-        self.client = client
-        self.map = client.state
-        self.position = None
-        self.currentlyMining = None
-
-    def start(self):
-        shouldStop = False
-        while not shouldStop:
-            shouldStop = self.client.readNext()
-            if self.client.ready:
-                # when client is ready, "steal" the reception cb, this should be avoided
-                self.map = client.state
-                self.client.setReadCb(lambda line: self.eventIncoming(line))
-
-    def applyMove(self, moves):
-        for move in moves:
-            if "claim" in move.keys():
-                # claim rivers for each claim received
-                self.map.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
-
-    def eventIncoming(self, event):
-        # starts the timeout
-        self.client.timeStart = time.time()
-        for key, value in event.iteritems():
-            if key == u'move':
-                # when received a move, apply it
-                self.applyMove(value["moves"])
-                # ask the next move to the model
-                move = self.map.getNextMove()
-                # check if move was found
-                if move:
-                    self.client.write(move)
-                else:
-                    printD("did not find any move, passing")
-                    self.client.write({"pass": {"punter": self.client.punter}})
-                printD("playing at :" + str(self.client.getTimeout()))
-            if key == u'stop':
-                # when received a stop, register the scores
-                for punterScore in value["scores"]:
-                    self.map.setScores(punterScore["punter"], punterScore["score"])
-                printD(str(self.map.scores))
-                printD("my Score : " + str(self.map.scores[self.client.punter]))
-                return True
-        return False
-
-    def close(self):
-        if self.map:
-            self.map.close()
-
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
@@ -137,15 +84,15 @@ if __name__ == '__main__':
         # instanciate and connect online client
         client = OnlineClient("localhost", port)
         # instanciate a punter
-        game = LambdaPunter(client)
+        game = DiscoveryStrategy(client)
         # set the parameters of the client
         client.title = "local map"
         client.timeout = timeout
         try:
             # start the game
-            game.start()
+            client.start()
             # if game exits correctly, it means game has ended
-            print "local game score : " + str(game.map.scores[game.client.punter])
+            print "local game score : " + str(game.scores[game.client.punter])
             game.close()
             client.sock.close()
         except IOError as e:
