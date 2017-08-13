@@ -6,7 +6,6 @@ import copy
 
 def print_err(str):
     print >> sys.stderr, str
-    pass
 
 
 class Site:
@@ -25,40 +24,50 @@ class DiscoveryGraph(nx.DiGraph):
 
     def explore(self, timeout):
         currentNode = self.head
-        for source in currentNode.endpoints:
-            for target in currentNode.fullGraph.neighbors(source):
-                # create a new node by exploring it
-                startTime = time.time()
-                self.evolve_from(currentNode, source, target)
-                print("1 evolution took : " + str(time.time() - startTime))
+        start = time.time()
+        nextList = [self.head]
+        i=0
+        while len(nextList) > 0 and (time.time() - start < timeout ):
+            currentNode = nextList.pop(0)
+            for source in currentNode.endpoints:
+                for target in currentNode.fullGraph.neighbors(source):
+                    # create a new node by exploring it
+                    newGraph = self.evolve_from(currentNode, source, target)
+                    i+=1
+                    if newGraph:
+                        nextList.append(newGraph)
+        if len(nextList) != 0:
+            print_err("timeout, made " + str(i))
 
     def getBestMove(self):
-        successors = self.successors(self.head)
-        if len(successors) > 0:
-            bestTarget = sorted(self.successors(self.head), key=lambda graph: graph.score, reverse=True)[0]
-            bestScore = bestTarget.score
-            bestMove = self.edge[self.head][bestTarget]["move"]
-        else:
+        (bestScores, bestPathes) = nx.single_source_dijkstra(self, self.head, cutoff=5)
+        bestscoreitem = sorted([(key, value) for (key, value) in bestScores.items()], key=lambda x: x[1]/len(bestPathes[x[0]]))
+        #bestscoreitem = sorted([(key, value) for (key, value) in bestscoreitem], key=lambda x:x[1])
+        bestTarget = bestscoreitem[0]
+        bestMove = None
+        if len(bestPathes[bestTarget[0]]) > 1:
+            bestfirstTarget = bestPathes[bestTarget[0]][1]
+            bestScore = bestfirstTarget.score
+            bestMove = self[self.head][bestfirstTarget]['move']
+        if bestMove == None:
             bestMove = None
             bestScore = self.head.score
         return (bestMove, bestScore)
 
     def claim(self, source, target):
-        for targetNode in self.successors(self.head):
-            (moveSource, moveTarget) = self[self.head][targetNode]["move"]["claim"]
-            if moveSource == source and moveTarget == target:
-                self.head = targetNode
-                break
+        self.head.claim(source,target)
         self.clear()
-        self.add_node(self.head, attr_dict={'graph':self.head})
+        return
+        nodesToRemove = [node for (node, attr) in self.nodes(data=True) if nx.number_of_nodes(attr['graph']) < nx.number_of_nodes(self)]
+        self.remove_nodes_from(nodesToRemove)
 
     def evolve_from(self, scoringGraph, source, target):
         newGraph = ScoringGraph(scoringGraph.fullGraph, scoringGraph)  #copy the source scoringGraph
         newGraph.claim(source, target)  # claim the (source, target) in a new scoring graph
-        if not newGraph in self.nodes():  # if the result is already known
-            self.add_node(newGraph, attr_dict={'graph':newGraph})  #add the new node
-        self.add_path([scoringGraph, newGraph],  weight = 0, move= {"claim": (source, target)})  #add the edge
-
+        weight = -(newGraph.score - scoringGraph.score)
+        self.add_node(newGraph, attr_dict={'graph':newGraph})  #add the new node
+        self.add_path([scoringGraph, newGraph],  weight = weight, move= {"claim": (source, target)})  #add the edge
+        return newGraph  # return newGraph
 
     def display(self, graph = None):
         online = False
@@ -66,9 +75,9 @@ class DiscoveryGraph(nx.DiGraph):
             online = True
             graph = self
         plt.title('discovery')  # hard code the title
-        nx.draw_spectral(graph)  # expand using spectral layout
+        nx.draw_graphviz(graph)  # expand using spectral layout
         #nx.draw_networkx_edge_labels(graph, pos=nx.spectral_layout(self))  # draw labels
-        nx.draw_networkx_nodes(graph, pos=nx.spectral_layout(self), nodelist=[self.head], node_color='g')
+        #nx.draw_networkx_nodes(graph, pos=nx.graphviz_layout(self), nodelist=[self.head], node_color='g')
 
         if online :
             self.head.fullGraph.fig.canvas.draw()
@@ -123,10 +132,7 @@ class ScoringGraph(nx.Graph):
 
     # make it comparable with __eq__ and __hash__
     def __eq__(self, other):
-        return sorted(self.edges()) == sorted(other.edges())
-
-    def __hash__(self):
-        return hash(tuple(sorted(self.edges())))
+        return other != None and sorted(self.nodes()) == sorted(other.nodes())
 
     def claim(self, source, target):
         assert source in self.nodes() #make sure source is in graph
@@ -151,16 +157,12 @@ class ScoringGraph(nx.Graph):
             nodeTarget = self.node[target]  # get nodeSource and nodeTarget
             sourcePath = self.pathes[nodeSource["path"].mines[0]]# target path is a bit odd to be up to date,
             targetPath = self.pathes[nodeTarget["path"].mines[0]] # it needs to refer to the current path of it's first mine path
-            if (target in self.fullGraph.mines):
-                pass
             if sourcePath != targetPath:  # if source and target does not share the same path
                 #add one path to the other
                 self.score = self.score - targetPath.score - sourcePath.score
                 newPath = sourcePath + targetPath
                 for nodeId in newPath.nodes:  # update score for new path
                     for mine in newPath.mines:
-                        if nodeId not in self.nodes():
-                            pass
                         score = self.node[nodeId]["pathForMine_" + str(mine)]**2
                         newPath.score += score
                         self.score += score
@@ -309,13 +311,13 @@ class DiscoveryStrategy(LambdaPunter):
         timeStart = time.time()
         if punter == self.punter:  # if punter is player, evolve the scoringgraph
             self.discoveryGraph.claim(source, target)
-            #self.discoveryGraph.head.displayMove(source, target)
+            self.discoveryGraph.head.displayMove(source, target)
         self.discoveryGraph.head.fullGraph.claim(source, target)  # remove the claimed river from the main graph
         print_err("claiming time = " + str(time.time() - timeStart))
 
     # this function calculates the best next move to play
     def getNextMove(self):
-        self.discoveryGraph.explore(self.client.timeout / 2)  # explore discoveryGraph
+        self.discoveryGraph.explore(self.client.timeout)  # explore discoveryGraph
         timeStart = time.time()
         (bestMove, bestScore) = self.discoveryGraph.getBestMove()  # get the best move found
         print_err("getBestMoveTime = " + str(time.time() - timeStart))
