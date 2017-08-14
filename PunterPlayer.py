@@ -7,7 +7,7 @@ from model import print_err
 from Discovery import DiscoveryGraph
 
 class LambdaPunter:
-    def __init__(self, client):
+    def __init__(self, client, display=True):
         # initialize variables
         self.mines = []
         self.punters = None
@@ -16,6 +16,7 @@ class LambdaPunter:
         self.scores = {}
         client.set_strategycb(lambda line: self.eventIncoming(line))
         self.leftMoves = 0
+        self.display = display
 
     def applyMove(self, moves):
         for move in moves:
@@ -28,7 +29,7 @@ class LambdaPunter:
         self.client.timeStart = time.time()
         for key, value in event.iteritems():
             if key == u'map':
-                self.setup_map(value)
+                self.setup_map(value, self.display)
             if key == u'move':
                 # when received a move, apply it
                 self.applyMove(value["moves"])
@@ -50,9 +51,6 @@ class LambdaPunter:
                 return True
         return False
 
-    def displayScore(self, mapTitle, score):
-        plt.title(mapTitle + str(score) + " (left:" + str(self.leftMoves) + ")")
-
     def setScores(self, punter, score):
         self.scores[punter] = score
 
@@ -70,9 +68,9 @@ class LambdaPunter:
         assert False
 
 class DiscoveryStrategy(LambdaPunter):
-    def setup_map(self, map):
-        fullgraph = FullGraph(map)
-        scoringGraph = ScoringGraph(fullgraph)
+    def setup_map(self, map, should_display=True):
+        fullgraph = FullGraph(map, should_display)
+        scoringGraph = ScoringGraph(fullgraph, should_display=should_display)
         self.discoveryGraph = DiscoveryGraph(scoringGraph)
         self.leftMoves = nx.number_of_edges(fullgraph) / self.client.punters  # initialize number of turns
         self.discoveryGraph.head.fullGraph.display()  # display map
@@ -82,10 +80,10 @@ class DiscoveryStrategy(LambdaPunter):
     # this function should be called when a river is claimed by a punter
     def claimRiver(self, punter, source, target):
         timeStart = time.time()
+        self.discoveryGraph.head.fullGraph.claim(source, target)  # remove the claimed river from the main graph
         if punter == self.punter:  # if punter is player, evolve the scoringgraph
             self.discoveryGraph.claim(source, target)
             self.discoveryGraph.head.displayMove(source, target)
-        self.discoveryGraph.head.fullGraph.claim(source, target)  # remove the claimed river from the main graph
         print_err("claiming time = " + str(time.time() - timeStart))
 
     # this function calculates the best next move to play
@@ -95,7 +93,7 @@ class DiscoveryStrategy(LambdaPunter):
         (bestMove, bestScore) = self.discoveryGraph.getBestMove()  # get the best move found
         print_err("getBestMoveTime = " + str(time.time() - timeStart))
         self.leftMoves -= 1  # update movesleft as we are returning the next move
-        self.displayScore(self.client.title, bestScore)  # display score up to date
+        self.discoveryGraph.head.fullGraph.displayScore(self.client.title, bestScore, self.leftMoves)  # display score up to date
         if bestMove:
             bestMove = bestMove.copy()
             bestMove["claim"] =  {"punter": self.client.punter, "source": bestMove["claim"][0], "target": bestMove["claim"][1]}  # set the move
