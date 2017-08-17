@@ -58,6 +58,9 @@ class DiscoveryGraph(gt.Graph):
         self.explore(timeout)
         dist_map, pred_map = gt.dijkstra_search(self, self.weight, self.vertex(self.head),infinity=self.fullgraph.maxScore*self.fullgraph.num_edges())
         print dist_map.a
+        dist_map, pred_map = gt.shortest_distance(self, self.head, weights=self.weight, negative_weights=False, dist_map=dist_map, pred_map=pred_map)
+        print dist_map.a
+        print pred_map.a
 
         bestMove = None
         bestScore = self.scoringgraphs[self.vertex(self.head)].score
@@ -74,10 +77,4 @@ class DiscoveryGraph(gt.Graph):
         self.fullgraph.remove_edge(source, target)
 
     def display(self):
-
-        gt.sfdp_layout(self, K=0.5)
-        self.win.graph.fit_to_window(ink=True)
-        # The following will force the re-drawing of the graph, and issue a
-        # re-drawing of the GTK window.
-        self.win.graph.regenerate_surface()
-        self.win.graph.queue_draw()
+        gt.graphviz_draw(self)
