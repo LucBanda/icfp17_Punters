@@ -47,12 +47,10 @@ if __name__ == '__main__':
         client.start()  # start the game
         # if game exits correctly, it means game has ended
         print "local game score : " + str(game.scores[game.client.punter])
-        game.close()
         client.sock.close()
     except IOError as e:
         # this happens in case of connection error
         print e
-        game.close()
         client.sock.close()
 
     printD("exit correctly")

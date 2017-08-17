@@ -3,7 +3,6 @@ import json
 import sys
 import time
 import urllib2
-import BeautifulSoup as bs
 
 
 def printD(str):
