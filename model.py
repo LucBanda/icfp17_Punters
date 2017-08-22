@@ -80,7 +80,6 @@ class ScoringGraph(nx.Graph):
         if not self.has_node(target):  # if target is not in graph
             nodeAttr = self.fullGraph.node[target]  # getAttributes in node
             self.add_node(target, attr_dict=nodeAttr.copy())  # add the node
-            self.add_edge(source, target)  # add the claimed edge to the scoring graph
             nodesource = self.node[source]  # append target to the same path as source
             nodeTarget = self.node[target]  # get nodeSource and nodeTarget
             path = self.pathes[nodesource["path"].mines[0]]  # get the current path it belongs to
@@ -90,6 +89,7 @@ class ScoringGraph(nx.Graph):
                 path.score += score  # increase the path score
                 self.score += score  # and the graph score
             self.node[target]["path"] = path  # store the path in the node
+            self.node[target]["path"] = path  # store the path in the node
         else:  #if target is already in graph
             assert target in self.nodes()  # make sure of it
             nodeSource = self.node[source]  # append target to the same path as source
@@ -98,7 +98,6 @@ class ScoringGraph(nx.Graph):
             targetPath = self.pathes[nodeTarget["path"].mines[0]] # it needs to refer to the current path of it's first mine path
             if sourcePath != targetPath:  # if source and target does not share the same path
                 #add one path to the other
-                self.add_edge(source, target)  # add the claimed edge to the scoring graph
                 self.score = self.score - targetPath.score - sourcePath.score
                 newPath = sourcePath + targetPath
                 for nodeId in newPath.nodes:  # update score for new path
@@ -171,8 +170,8 @@ class FullGraph(nx.Graph):
             plt.plot([site["site"].x for site in self.node.values() if site["site"].isMine],
                      [site["site"].y for site in self.node.values() if site["site"].isMine], 'ro',
                      label="mine")  # draw mines
-            for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
-                plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+            #for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
+            #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
 
             plt.show(block=False)  # show non blocking
 
