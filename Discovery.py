@@ -36,20 +36,26 @@ class DiscoveryGraph(nx.DiGraph):
         else:
             print_err("to the end of " + str(i))
 
-    def getBestMove(self):
-        (bestScores, bestPathes) = nx.single_source_dijkstra(self, self.head, cutoff=10)
-        maxLen = 0
-        for bestPath in bestPathes.values():
-            if maxLen < len(bestPath): maxLen = len(bestPath)
-        print_err("max path len = " + str(maxLen))
+    def predecessors_to_path(self, pred, source, target):
+        path = []
+        curr = target
+        while curr != source:
+            path.append(curr)
+            curr = pred[curr]
+        path.append(source)
+        path.reverse()
+        return path
 
-        bestscoreitem = sorted([(key, value) for (key, value) in bestScores.items()], key=lambda x: x[1]/len(bestPathes[x[0]]))
-        #bestscoreitem = sorted([(key, value) for (key, value) in bestscoreitem], key=lambda x:x[1])
-        bestTarget = bestscoreitem[0]
+    def getBestMove(self):
+        pred, dist = nx.bellman_ford(self, self.head)
+
+        bestscoreitem = sorted([(self.predecessors_to_path(pred, self.head, key), value) for (key, value) in dist.items()], key=lambda x: x[1]/len(x[0]))
+        bestPath = bestscoreitem[0][0]
         bestMove = None
         bestScore = self.head.score
-        if len(bestPathes[bestTarget[0]]) > 1:
-            bestfirstTarget = bestPathes[bestTarget[0]][1]
+        print_err("path len = " + str(len(bestPath)))
+        if len(bestPath) > 1:
+            bestfirstTarget = bestPath[1]
             bestScore = bestfirstTarget.score
             bestMove = self[self.head][bestfirstTarget]['move']
         return (bestMove, bestScore)
@@ -70,7 +76,7 @@ class DiscoveryGraph(nx.DiGraph):
         edges_to_remove = []
         nodes_to_remove = []
         for node in self.nodes_iter():
-            if len(node.nodes()) < len(self.head.nodes()):
+            if len(node.pathes.keys()) < len(self.head.pathes.keys()):
                 for distant in self.out_edges_iter(node):
                     edges_to_remove.append((distant, node))
                 nodes_to_remove.append(node)
@@ -98,7 +104,7 @@ class DiscoveryGraph(nx.DiGraph):
             online = True
             graph = self
         plt.title('discovery')  # hard code the title
-        nx.draw_graphviz(graph)  # expand using spectral layout
+        nx.draw_spectral(graph)  # expand using spectral layout
         #nx.draw_networkx_edge_labels(graph, pos=nx.spectral_layout(self))  # draw labels
         #nx.draw_networkx_nodes(graph, pos=nx.graphviz_layout(self), nodelist=[self.head], node_color='g')
 
