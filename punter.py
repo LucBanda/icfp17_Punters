@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import signal
 import sys
 import getopt
@@ -10,8 +10,8 @@ def signal_handler(signal, frame):
     raise IOError()
 
 
-def printD(str):
-    print >> sys.stderr, str
+def printD(string:str):
+    print(string, file=sys.stderr)
     pass
 
 if __name__ == '__main__':
@@ -24,12 +24,12 @@ if __name__ == '__main__':
     try:
         opts, args = getopt.getopt(argv, "hdt:p:")
     except getopt.GetoptError:
-        print 'punter.py [-d] [-h [-p port] [-t timeout]]'
+        print("punter.py [-d] [-h [-p port] [-t timeout]]")
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print '-h [-d] [-p port] [-t timeout]'
+            print('-h [-d] [-p port] [-t timeout]')
             sys.exit()
         elif opt == "-t":
             timeout = int(arg)
@@ -46,12 +46,12 @@ if __name__ == '__main__':
     try:
         client.start()  # start the game
         # if game exits correctly, it means game has ended
-        print "local game score : " + str(game.scores[game.client.punter])
+        print("local game score : " + str(game.scores[game.client.punter]))
         game.close()
         client.sock.close()
     except IOError as e:
         # this happens in case of connection error
-        print e
+        print(e)
         game.close()
         client.sock.close()
 

@@ -3,19 +3,19 @@ import networkx as nx
 import sys
 import copy
 
-def print_err(str):
-    print >> sys.stderr, str
+def print_err(string :str):
+    print(string, file = sys.stderr)
 
 
 class Site:
-    def __init__(self, id, x, y, isMine=False):
+    def __init__(self, id :int, x :float, y :float, isMine :bool=False):
         self.id = id
         self.x = x
         self.y = y
         self.isMine = isMine
 
 class Path:
-    def __init__(self, mine):
+    def __init__(self, mine :int):
         self.mines=[mine]
         self.nodes=[mine]
         self.score=0
@@ -40,7 +40,7 @@ class ScoringGraph(nx.Graph):
     # 'path'
     # "pathForMine_%d"
 
-    def __init__(self, parentGraph=None, other=None, should_display=True):
+    def __init__(self, parentGraph :'FullGraph' =None, other :'ScoringGraph'=None, should_display :bool=True):
         self.should_display = should_display
         if other is None:
             nx.Graph.__init__(self)
@@ -65,7 +65,7 @@ class ScoringGraph(nx.Graph):
             self.should_display = other.should_display
 
     # make it comparable with __eq__ and __hash__
-    def __eq__(self, other):
+    def __eq__(self, other:'ScoringGraph'):
         if other == None:
             return False
         if (set(self.node.keys()) == set(other.node.keys())):
@@ -74,7 +74,10 @@ class ScoringGraph(nx.Graph):
         else:
             return False
 
-    def claim(self, source, target):
+    def __hash__(self):
+        return nx.DiGraph.__hash__(self)
+
+    def claim(self, source :int, target :int):
         assert source in self.nodes() #make sure source is in graph
 
         if not self.has_node(target):  # if target is not in graph
@@ -116,7 +119,7 @@ class ScoringGraph(nx.Graph):
         self.update_endpoints(target)
         return True
 
-    def update_endpoints(self, source):
+    def update_endpoints(self, source :int):
         stillneighbors = False
         for neighbor in self.fullGraph.neighbors(source):
             if neighbor not in self.pathes[self.node[source]['path'].mines[0]].nodes:
@@ -127,7 +130,7 @@ class ScoringGraph(nx.Graph):
         elif stillneighbors and source not in self.endpoints:
             self.endpoints.insert(0,source)
 
-    def displayMove(self, source, target):
+    def displayMove(self, source :int, target :int):
         if self.should_display:
             sourceSite = self.node[source]["site"]  # get source and target in the graph
             targetSite = self.node[target]["site"]
@@ -141,7 +144,7 @@ class FullGraph(nx.Graph):
     # key : 'site.id'
     # 'site'
     # "pathForMine_%d"
-    def __init__(self, map, should_display=True):
+    def __init__(self, map :dict, should_display :bool =True):
         nx.Graph.__init__(self)
         for site in map["sites"]:  # populate sites in main graph
             self.add_node(site["id"])
@@ -175,9 +178,9 @@ class FullGraph(nx.Graph):
 
             plt.show(block=False)  # show non blocking
 
-    def displayScore(self, mapTitle, score, leftMoves):
+    def displayScore(self, mapTitle :str, score :int, leftMoves :int):
         if self.should_display:
             plt.title(mapTitle + str(score) + " (left:" + str(leftMoves) + ")")
 
-    def claim(self, source, target):
+    def claim(self, source :int, target :int):
         self.remove_edge(source, target)  # only remove the edge in the graph as it is not available anymore

@@ -5,6 +5,11 @@ from model import ScoringGraph
 from model import FullGraph
 from model import print_err
 from Discovery import DiscoveryGraph
+import sys
+
+
+def printD(string :str):
+    print(string, file = sys.stderr)
 
 class LambdaPunter:
     def __init__(self, client, display=True):
@@ -24,10 +29,10 @@ class LambdaPunter:
                 # claim rivers for each claim received
                 self.claimRiver(move["claim"]["punter"], move["claim"]["source"], move["claim"]["target"])
 
-    def eventIncoming(self, event):
+    def eventIncoming(self, event :dict):
         # starts the timeout
         self.client.timeStart = time.time()
-        for key, value in event.iteritems():
+        for key, value in event.items():
             if key == u'map':
                 self.setup_map(value, self.display)
             if key == u'move':
@@ -51,14 +56,14 @@ class LambdaPunter:
                 return True
         return False
 
-    def setScores(self, punter, score):
+    def setScores(self, punter :int, score :int):
         self.scores[punter] = score
 
     # noinspection PyMethodMayBeStatic
     def close(self):
         plt.close('all')
 
-    def claimRiver(self, punter, source, target):
+    def claimRiver(self, punter :int, source :int, target :int):
         assert False
 
     def getNextMove(self):
@@ -68,7 +73,7 @@ class LambdaPunter:
         assert False
 
 class DiscoveryStrategy(LambdaPunter):
-    def setup_map(self, map, should_display=True):
+    def setup_map(self, map :dict, should_display=True):
         fullgraph = FullGraph(map, should_display)
         scoringGraph = ScoringGraph(fullgraph, should_display=should_display)
         self.discoveryGraph = DiscoveryGraph(scoringGraph)
@@ -78,7 +83,7 @@ class DiscoveryStrategy(LambdaPunter):
         self.punters = self.client.punters
 
     # this function should be called when a river is claimed by a punter
-    def claimRiver(self, punter, source, target):
+    def claimRiver(self, punter :int, source :int, target :int):
         timeStart = time.time()
         self.discoveryGraph.head.fullGraph.claim(source, target)  # remove the claimed river from the main graph
         if punter == self.punter:  # if punter is player, evolve the scoringgraph
@@ -99,5 +104,5 @@ class DiscoveryStrategy(LambdaPunter):
             bestMove["claim"] =  {"punter": self.client.punter, "source": bestMove["claim"][0], "target": bestMove["claim"][1]}  # set the move
         else:
             bestMove = {"pass":{"punter":self.client.punter}}
-        print bestMove
+        printD(bestMove)
         return bestMove   # return the move

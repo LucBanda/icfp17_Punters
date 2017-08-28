@@ -6,12 +6,12 @@ import time
 
 # noinspection PyClassHasNoInit
 class DiscoveryGraph(nx.DiGraph):
-    def __init__(self, scoringGraph):
+    def __init__(self, scoringGraph :ScoringGraph):
         nx.DiGraph.__init__(self)
         self.add_node(scoringGraph)  # register a new scoringGraph
         self.head = scoringGraph
 
-    def explore(self, timeout):
+    def explore(self, timeout :float):
         start = time.time()
         nextList = [self.head]
         i = 0
@@ -22,13 +22,15 @@ class DiscoveryGraph(nx.DiGraph):
 
         while len(nextList) > 0 and (time.time() - start < timeout ):
             currentNode = nextList.pop(0)
+            if currentNode.explored:
+                pass
             for source in currentNode.endpoints:
                 for target in currentNode.fullGraph.neighbors(source):
                     # create a new node by exploring it
                     newGraph = self.evolve_from(currentNode, source, target)
                     i+=1
                     if newGraph:
-                        nextList.append(newGraph)   
+                        nextList.append(newGraph)
             currentNode.explored = True
 
         if len(nextList) != 0:
@@ -54,7 +56,7 @@ class DiscoveryGraph(nx.DiGraph):
             bestMove = self[self.head][bestfirstTarget]['move']
         return (bestMove, bestScore)
 
-    def claim(self, source, target):
+    def claim(self, source :int, target :int):
         for s,t,attr in self.out_edges(self.head, data=True):
             if attr['move']['claim'][0] == source and attr['move']['claim'][1] == target:
                 self.head = t
@@ -77,7 +79,7 @@ class DiscoveryGraph(nx.DiGraph):
         self.remove_edges_from(edges_to_remove)
         self.remove_nodes_from(nodes_to_remove)
 
-    def evolve_from(self, scoringGraph, source, target):
+    def evolve_from(self, scoringGraph :ScoringGraph, source :int, target :int):
         for s,t,attr in self.out_edges_iter(scoringGraph, data=True):
             if attr['move']['claim'][0] == source and attr['move']['claim'][1] == target:
                 return t
@@ -92,7 +94,7 @@ class DiscoveryGraph(nx.DiGraph):
         else:
             return None
 
-    def display(self, graph = None):
+    def display(self, graph :nx.Graph = None):
         online = False
         if graph == None:
             online = True

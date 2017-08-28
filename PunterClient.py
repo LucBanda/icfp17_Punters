@@ -2,18 +2,16 @@ import socket
 import json
 import sys
 import time
-import urllib2
-import BeautifulSoup as bs
 
 
-def printD(str):
-    print >> sys.stderr, str
+def printD(string:str):
+    print(string, file=sys.stderr)
     pass
 
 
 class OnlineClient:
     # use this client to connect to a lambda punter server
-    def __init__(self, addr, port):
+    def __init__(self, addr :str, port :int):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # register local callback for handshake
         self.cb = lambda line: self.decodeCb(line)
@@ -36,7 +34,7 @@ class OnlineClient:
         self.cb = cb
 
     # connects the socket
-    def connect(self, host, port):
+    def connect(self, host :str, port :int):
         retry = 50
         # retry connection 50 times in case of fail
         while retry:
@@ -54,7 +52,7 @@ class OnlineClient:
         self.write({"me": "LucB"})
 
     #   this function sends a dictionnary to the server
-    def write(self, dict):
+    def write(self, dict :dict):
         # get json from dict
         strToSend = json.dumps(dict)
         # remove spaces
@@ -64,23 +62,23 @@ class OnlineClient:
         # trace execution
         printD("sending : " + strToSend)
         # send to the server
-        self.sock.send(strToSend)
+        self.sock.send(strToSend.encode())
 
     # this function blocks and read the next answer from the server
     def readNext(self):
         line = ""
         while True:
             # receive one char and append to the line
-            line += self.sock.recv(1)
+            line += self.sock.recv(1).decode()
             # when size is received, decode it
             if line.endswith(":"):
                 line = line.split(":")[0]
                 size = int(line)
 
                 # and wait for the next <size> bytes
-                line = self.sock.recv(size)
+                line = self.sock.recv(size).decode()
                 while len(line) != size:
-                    line += self.sock.recv(size - len(line))
+                    line += self.sock.recv(size - len(line)).decode()
 
                 # once received, print them
                 printD(str(size) + "," + str(len(line)) + ":" + line)
@@ -98,9 +96,9 @@ class OnlineClient:
         while not shouldStop:
             shouldStop = self.readNext()
 
-    def decodeCb(self, event):
+    def decodeCb(self, event:dict):
         # iterate over received items
-        for key, value in event.iteritems():
+        for key, value in event.items():
             if key == u'you':
                 # this is ack of 'me'
                 self.handshake = True
