@@ -137,6 +137,86 @@ class ScoringGraph(nx.Graph):
             plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], 'r-', linewidth=3)  # plot them
             self.fullGraph.fig.canvas.draw()  # update figure
 
+    def display(self):
+        for source in self.edges_iter():
+            self.displayMove(source[0], source[1])
+
+class PunterGameState(nx.Graph):
+    """ A state of the game, i.e. the game board. These are the only functions which are
+        absolutely necessary to implement UCT in any 2-player complete information deterministic 
+        zero-sum game, although they can be enhanced and made quicker, for example by using a 
+        GetRandomMove() function to generate a random move during rollout.
+        By convention the players are numbered 1 and 2.
+    """
+    def __init__(self, fullGraph = None, sourceState = None):
+        if not sourceState:
+            nx.Graph.__init__(self)
+            self.fullGraph = fullGraph
+            self.playerJustMoved = 2 # At the root pretend the player just moved is player 2 - player 1 has the first move
+            self.score = None # score is invalid
+            if fullGraph:
+                for mine in self.fullGraph.mines:
+                    self.add_node(mine, attr_dict=fullGraph.node[mine])  # import mines as nodes of scoring graph
+                self.moves = [(source, target) for source in self.nodes_iter() for target in self.neighbors(source)]
+        else:
+            nx.Graph.__init__(self, sourceState)
+            self.fullGraph = sourceState.fullGraph
+            self.score = sourceState.score
+            self.playerJustMoved = sourceState.playerJustMoved
+
+    def Clone(self):
+        """ Create a deep clone of this game state.
+        """
+        st = PunterGameState(sourceState=self)
+        return st
+
+    def DoMove(self, move):
+        """ Update a state by carrying out the given move.
+            Must update playerJustMoved.
+        """
+        source = move[0]
+        target = move[1]
+        if not self.has_node(target):  # if target is not in graph
+            nodeAttr = self.fullGraph.node[target]  # getAttributes in node
+            self.add_node(target, attr_dict=nodeAttr.copy())  # add the node
+            self.add_edge(source, target)
+        else:  #if target is already in graph
+            self.add_edge(source, target)
+        self.score = None
+
+
+    def GetMoves(self):
+        """ Get all possible moves from this state.
+        """
+        return [(source, target) for source in self.nodes_iter() for target in self.fullGraph.neighbors_iter(source) if (source, target) not in self.edges()]
+
+    def GetResult(self, playerjm):
+        """ Get the game result from the viewpoint of playerjm.
+        """
+        if not self.score:
+            score = 0
+            for nodeId in self.nodes_iter():  # update score for new path
+                for mine in self.fullGraph.mines:
+                    if nx.has_path(self, nodeId, mine):
+                        score += self.node[nodeId]["pathForMine_" + str(mine)] ** 2
+            self.score = score
+        return self.score
+
+    def __repr__(self):
+        """ Don't need this - but good style.
+        """
+        return self.edges()
+
+    def display(self):
+        for edge in self.edges_iter():
+            source = edge[0]
+            target = edge[1]
+            sourceSite = self.node[source]["site"]  # get source and target in the graph
+            targetSite = self.node[target]["site"]
+            plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], 'g-', linewidth=3)  # plot them
+            self.fullGraph.fig.canvas.draw()  # update figure
+
+
 class FullGraph(nx.Graph):
     # this is the main graph, containing all sites and rivers
     # edges taken by opponents are removed
@@ -173,8 +253,8 @@ class FullGraph(nx.Graph):
             plt.plot([site["site"].x for site in self.node.values() if site["site"].isMine],
                      [site["site"].y for site in self.node.values() if site["site"].isMine], 'ro',
                      label="mine")  # draw mines
-            #for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
-            #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+            for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
+                plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
 
             plt.show(block=False)  # show non blocking
 
@@ -184,3 +264,10 @@ class FullGraph(nx.Graph):
 
     def claim(self, source :int, target :int):
         self.remove_edge(source, target)  # only remove the edge in the graph as it is not available anymore
+
+    def displayMove(self, source: int, target: int):
+        if self.should_display:
+            sourceSite = self.node[source]["site"]  # get source and target in the graph
+            targetSite = self.node[target]["site"]
+            plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], 'r-', linewidth=5)  # plot them
+            self.fig.canvas.draw()  # update figure

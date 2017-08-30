@@ -6,7 +6,8 @@ from model import FullGraph
 from model import print_err
 from Discovery import DiscoveryGraph
 import sys
-
+from UCT import UCT
+from model import PunterGameState
 
 def printD(string :str):
     print(string, file = sys.stderr)
@@ -104,5 +105,27 @@ class DiscoveryStrategy(LambdaPunter):
             bestMove["claim"] =  {"punter": self.client.punter, "source": bestMove["claim"][0], "target": bestMove["claim"][1]}  # set the move
         else:
             bestMove = {"pass":{"punter":self.client.punter}}
+        printD(bestMove)
+        return bestMove   # return the move
+
+class UCTStrategy(LambdaPunter):
+    def setup_map(self, map :dict, should_display=True):
+        self.source = PunterGameState(FullGraph(map, should_display))
+        self.source.fullGraph.display()
+
+    def claimRiver(self, punter, source, target):
+        #plt.clf()  # reset display
+        #self.source.fullGraph.display()
+        self.source.fullGraph.displayMove(source, target)
+        self.source.fullGraph.claim(source, target)  # remove the claimed river from the main graph
+        self.source.DoMove((source, target))
+
+    def getNextMove(self):
+        move = UCT(self.source, self.client.timeout, 5)  # get the best move found
+        bestScore = 0
+        bestMove = {}
+        self.leftMoves -= 1  # update movesleft as we are returning the next move
+        self.source.fullGraph.displayScore(self.client.title, bestScore, self.leftMoves)  # display score up to date
+        bestMove["claim"] =  {"punter": self.client.punter, "source": move[0], "target": move[1]}  # set the move
         printD(bestMove)
         return bestMove   # return the move

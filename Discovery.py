@@ -17,7 +17,7 @@ class DiscoveryGraph(nx.DiGraph):
         i = 0
 
         for successors in nx.bfs_successors(self, self.head):
-            if successors.explored == False:
+            if not successors.explored:
                 nextList.append(successors)
 
         while len(nextList) > 0 and (time.time() - start < timeout ):

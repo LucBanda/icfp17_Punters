@@ -4,6 +4,7 @@ import sys
 import getopt
 from PunterClient import OnlineClient
 from PunterPlayer import DiscoveryStrategy
+from PunterPlayer import UCTStrategy
 
 # noinspection PyUnusedLocal,PyUnusedLocal
 def signal_handler(signal, frame):
@@ -20,16 +21,16 @@ if __name__ == '__main__':
     timeout = 2
     port = 9000
     display = False
-
+    strategy = 'discovery'
     try:
-        opts, args = getopt.getopt(argv, "hdt:p:")
+        opts, args = getopt.getopt(argv, "hdt:p:s:")
     except getopt.GetoptError:
-        print("punter.py [-d] [-h [-p port] [-t timeout]]")
+        print("punter.py [-d] [-h [-p port] [-t timeout] [-s strategy]]")
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print('-h [-d] [-p port] [-t timeout]')
+            print('-h [-d] [-p port] [-t timeout][-s strategy]')
             sys.exit()
         elif opt == "-t":
             timeout = int(arg)
@@ -37,12 +38,17 @@ if __name__ == '__main__':
             port = int(arg)
         elif opt == "-d":
             display = True
+        elif opt == "-s":
+            strategy = arg
 
     # play with local server provided by compete at http://git.kthxb.ai/compete/icfpc2017
     client = OnlineClient("localhost", port)  # instanciate and connect online client
     client.title = "local map"  # set the parameters of the client
     client.timeout = timeout
-    game = DiscoveryStrategy(client, display)  # instanciate a punter
+    if strategy == 'uct':
+        game = UCTStrategy(client, display)  # instanciate a punter
+    else:
+        game = DiscoveryStrategy(client, display)  # instanciate a punter
     try:
         client.start()  # start the game
         # if game exits correctly, it means game has ended
