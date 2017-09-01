@@ -155,15 +155,18 @@ class PunterGameState(nx.Graph):
             self.fullGraph = fullGraph
             self.playerJustMoved = 2 # At the root pretend the player just moved is player 2 - player 1 has the first move
             self.score = None # score is invalid
+            self.pathes = {}
             if fullGraph:
                 for mine in self.fullGraph.mines:
                     self.add_node(mine, attr_dict=fullGraph.node[mine])  # import mines as nodes of scoring graph
+                    self.pathes[mine] = Path(mine)  # import mines in pathes as id
                 self.moves = [(source, target) for source in self.nodes_iter() for target in self.neighbors(source)]
         else:
             nx.Graph.__init__(self, sourceState)
             self.fullGraph = sourceState.fullGraph
             self.score = sourceState.score
             self.playerJustMoved = sourceState.playerJustMoved
+            self.pathes = copy.deepcopy(sourceState.pathes)
 
     def Clone(self):
         """ Create a deep clone of this game state.
@@ -181,15 +184,24 @@ class PunterGameState(nx.Graph):
             nodeAttr = self.fullGraph.node[target]  # getAttributes in node
             self.add_node(target, attr_dict=nodeAttr.copy())  # add the node
             self.add_edge(source, target)
+            path = self.pathes[source]
+            path.nodes.append(target)  # append the target to the current path
+            self.pathes[target] = path
         else:  #if target is already in graph
             self.add_edge(source, target)
-        self.score = None
+            sourcePath = self.pathes[source]  # target path is a bit odd to be up to date,
+            targetPath = self.pathes[target]  # it needs to refer to the current path of it's first mine path
+            if sourcePath != targetPath:  # if source and target does not share the same path
+                # add one path to the other
+                newPath = sourcePath + targetPath
+                for nodeId in newPath.nodes:  # update score for new path
+                    self.pathes[nodeId] = newPath
 
 
     def GetMoves(self):
         """ Get all possible moves from this state.
         """
-        return [(source, target) for source in self.nodes_iter() for target in self.fullGraph.neighbors_iter(source) if (source, target) not in self.edges()]
+        return [(source, target) for source in self.nodes_iter() for target in self.fullGraph.neighbors_iter(source) if not self.has_edge(source, target)]
 
     def GetRandomMove(self):
         sources = self.nodes()
@@ -200,6 +212,20 @@ class PunterGameState(nx.Graph):
                 target = random.choice(targets)
                 return (source, target)
         return None
+        # move = None
+        # sources = sorted(self.nodes(), reverse=True, key=lambda x:sum([self.fullGraph.node[nodeId]["pathForMine_" + str(mine)] ** 2 for nodeId in self.pathes[x].nodes for mine in self.pathes[x].mines]))
+        # for source in sources:
+        #     targets = self.fullGraph.neighbors(source)
+        #     while targets:
+        #         target = random.choice(targets)
+        #         if not self.has_edge(source, target):
+        #             move = (source, target)
+        #             break
+        #         else:
+        #             targets.remove(target)
+        #     if move:
+        #         break
+        # return move
 
     def GetResult(self, playerjm):
         """ Get the game result from the viewpoint of playerjm.
@@ -207,9 +233,8 @@ class PunterGameState(nx.Graph):
         if not self.score:
             score = 0
             for nodeId in self.nodes_iter():  # update score for new path
-                for mine in self.fullGraph.mines:
-                    if nx.has_path(self, nodeId, mine):
-                        score += self.node[nodeId]["pathForMine_" + str(mine)] ** 2
+                for mine in self.pathes[nodeId].mines:
+                    score += self.fullGraph.node[nodeId]["pathForMine_" + str(mine)] ** 2
             self.score = score
         return self.score
 
@@ -218,13 +243,16 @@ class PunterGameState(nx.Graph):
         """
         return self.edges()
 
-    def display(self):
+    def display(self, color='r-', reset=False):
+        if reset:
+            plt.clf()
+            self.fullGraph.display()
         for edge in self.edges_iter():
             source = edge[0]
             target = edge[1]
             sourceSite = self.node[source]["site"]  # get source and target in the graph
             targetSite = self.node[target]["site"]
-            plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], 'g-', linewidth=3)  # plot them
+            plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], color, linewidth=2)  # plot them
             self.fullGraph.fig.canvas.draw()  # update figure
 
 
@@ -253,19 +281,21 @@ class FullGraph(nx.Graph):
         if self.should_display:
             self.fig = plt.figure(figsize=(10, 30))  # initialize graphics
 
-    def display(self):
+    def display(self, color='b-', reset=False):
+        if reset:
+            plt.clf()
         if self.should_display:
             plt.title('map ')  # default title
             for (source, target) in self.edges_iter():  # draw edges
                 plt.plot([self.node[source]["site"].x, self.node[target]["site"].x],
-                         [self.node[source]["site"].y, self.node[target]["site"].y], "b-", linewidth=1)
+                         [self.node[source]["site"].y, self.node[target]["site"].y], color, linewidth=1)
             plt.plot([site["site"].x for site in self.node.values()],
                      [site["site"].y for site in self.node.values()], 'k.', label="site")  # draw sites
             plt.plot([site["site"].x for site in self.node.values() if site["site"].isMine],
                      [site["site"].y for site in self.node.values() if site["site"].isMine], 'ro',
                      label="mine")  # draw mines
-            #for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
-            #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+            for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
+                plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
 
             plt.show(block=False)  # show non blocking
 
@@ -276,9 +306,9 @@ class FullGraph(nx.Graph):
     def claim(self, source :int, target :int):
         self.remove_edge(source, target)  # only remove the edge in the graph as it is not available anymore
 
-    def displayMove(self, source: int, target: int):
+    def displayMove(self, source: int, target: int, color='r-'):
         if self.should_display:
             sourceSite = self.node[source]["site"]  # get source and target in the graph
             targetSite = self.node[target]["site"]
-            plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], 'r-', linewidth=5)  # plot them
+            plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], color, linewidth=4)  # plot them
             self.fig.canvas.draw()  # update figure

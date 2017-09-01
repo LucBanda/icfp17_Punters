@@ -79,16 +79,18 @@ class Node:
 
 class UCT:
 
-    def __init__(self, rootstate, timeout, depthMax):
+    def __init__(self, rootstate, timeout, depthMax, displayDebug = False):
         self.timeout = timeout
         self.depthMax = depthMax
         self.rootNode = Node(state = rootstate)
         self.rootState = rootstate
+        self.displayDebug = displayDebug
 
     def playMove(self, move):
         for child in self.rootNode.childNodes:
             if child.move == move:
                 self.rootNode = child
+                break
         self.rootState.DoMove(move)
 
     def run(self):
@@ -99,17 +101,23 @@ class UCT:
         number_of_addchild = 0
         number_of_evolution = 0
         while(time.time() - startTime < self.timeout):
+        #iterMax = 20000
+        #while iterMax:
+        #    iterMax -= 1
             node = self.rootNode
             state = self.rootState.Clone()
             depthAllowed = self.depthMax
             expandedNodes = 0
 
+            if self.displayDebug:
+                self.rootState.fullGraph.display(reset=True)
             # Select
             while node.untriedMoves == [] and node.childNodes != []: # node is fully expanded and non-terminal
                 node = node.UCTSelectChild()
                 state.DoMove(node.move)
                 expandedNodes += 1
-                #state.display()
+                if self.displayDebug:
+                    state.fullGraph.displayMove(node.move[0], node.move[1], "r-")
 
             # Expand
             if node.untriedMoves != []: # if we can expand (i.e. state/node is non-terminal)
@@ -118,6 +126,11 @@ class UCT:
                 node = node.AddChild(m,state) # add child and descend tree
                 number_of_addchild += 1
                 number_of_evolution += 1
+                if self.displayDebug:
+                    state.fullGraph.displayMove(m[0], m[1], 'g-')
+                #self.rootState.display('r-', False)
+            else:
+                break #this is the end of the search
 
             # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
             while depthAllowed > 0: # while state is non-terminal
@@ -125,13 +138,14 @@ class UCT:
                 if m:
                     state.DoMove(m)
                     number_of_evolution += 1
+                    if self.displayDebug:
+                        state.fullGraph.displayMove(m[0], m[1], 'y-')
                 depthAllowed -= 1
 
             # Backpropagate
             while node != None: # backpropagate from the expanded node and work back to the root node
                 node.Update(state.GetResult(node.playerJustMoved)) # state is terminal. Update node with result from POV of node.playerJustMoved
                 node = node.parentNode
-
         # Output some information about the tree - can be omitted
         #if (verbose):
         #    print(rootnode.TreeToString(0))

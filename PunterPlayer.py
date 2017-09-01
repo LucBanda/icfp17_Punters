@@ -112,7 +112,7 @@ class UCTStrategy(LambdaPunter):
     def setup_map(self, map :dict, should_display=True):
         self.source = PunterGameState(FullGraph(map, should_display))
         self.source.fullGraph.display()
-        self.uctManager = UCT(self.source, self.client.timeout, 15)
+        self.uctManager = UCT(self.source, self.client.timeout, 15, False)
 
     def claimRiver(self, punter, source, target):
         self.uctManager.playMove((source, target))
