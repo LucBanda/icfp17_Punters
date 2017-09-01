@@ -243,18 +243,11 @@ class PunterGameState(nx.Graph):
         """
         return self.edges()
 
-    def display(self, color='r-', reset=False):
-        if reset:
-            plt.clf()
-            self.fullGraph.display()
-        for edge in self.edges_iter():
-            source = edge[0]
-            target = edge[1]
-            sourceSite = self.node[source]["site"]  # get source and target in the graph
-            targetSite = self.node[target]["site"]
-            plt.plot([sourceSite.x, targetSite.x], [sourceSite.y, targetSite.y], color, linewidth=2)  # plot them
-            self.fullGraph.fig.canvas.draw()  # update figure
+    def display(self, move, color='r-'):
+        self.fullGraph.displayMove(move[0],move[1], color)
 
+    def clearDisplay(self):
+        self.fullGraph.display(reset=True)
 
 class FullGraph(nx.Graph):
     # this is the main graph, containing all sites and rivers
@@ -294,8 +287,8 @@ class FullGraph(nx.Graph):
             plt.plot([site["site"].x for site in self.node.values() if site["site"].isMine],
                      [site["site"].y for site in self.node.values() if site["site"].isMine], 'ro',
                      label="mine")  # draw mines
-            for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
-                plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+            #for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
+            #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
 
             plt.show(block=False)  # show non blocking
 

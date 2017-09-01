@@ -32,7 +32,7 @@ class Node:
         self.visits = 0
         self.untriedMoves = state.GetMoves() # future child nodes
         self.playerJustMoved = state.playerJustMoved # the only part of the state that the Node needs later
-        
+
     def UCTSelectChild(self):
         """ Use the UCB1 formula to select a child node. Often a constant UCTK is applied so we have
             lambda c: c.wins/c.visits + UCTK * sqrt(2*log(self.visits)/c.visits to vary the amount of
@@ -93,7 +93,7 @@ class UCT:
                 break
         self.rootState.DoMove(move)
 
-    def run(self):
+    def run(self, k):
         """ Conduct a UCT search for itermax iterations starting from rootstate.
             Return the best move from the rootstate.
             Assumes 2 alternating players (player 1 starts), with game results in the range [0.0, 1.0]."""
@@ -106,18 +106,15 @@ class UCT:
         #    iterMax -= 1
             node = self.rootNode
             state = self.rootState.Clone()
-            depthAllowed = self.depthMax
-            expandedNodes = 0
-
+            #clear graphics
             if self.displayDebug:
-                self.rootState.fullGraph.display(reset=True)
+                self.state.clearDisplay()
             # Select
             while node.untriedMoves == [] and node.childNodes != []: # node is fully expanded and non-terminal
                 node = node.UCTSelectChild()
                 state.DoMove(node.move)
-                expandedNodes += 1
                 if self.displayDebug:
-                    state.fullGraph.displayMove(node.move[0], node.move[1], "r-")
+                    state.fullGraph.displayMove(node.move, "r-")
 
             # Expand
             if node.untriedMoves != []: # if we can expand (i.e. state/node is non-terminal)
@@ -127,60 +124,28 @@ class UCT:
                 number_of_addchild += 1
                 number_of_evolution += 1
                 if self.displayDebug:
-                    state.fullGraph.displayMove(m[0], m[1], 'g-')
-                #self.rootState.display('r-', False)
-            else:
-                break #this is the end of the search
+                    state.displayMove(m, 'g-')
 
             # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
-            while depthAllowed > 0: # while state is non-terminal
-                m = state.GetRandomMove()
-                if m:
-                    state.DoMove(m)
-                    number_of_evolution += 1
-                    if self.displayDebug:
-                        state.fullGraph.displayMove(m[0], m[1], 'y-')
-                depthAllowed -= 1
+            bestResult = 0
+            for i in range(0, k):
+                stateRollout = state.Clone()
+                depthAllowed=self.depthMax
+                while depthAllowed > 0: # while state is non-terminal
+                    m = stateRollout.GetRandomMove()
+                    if m:
+                        state.DoMove(m)
+                        number_of_evolution += 1
+                        if self.displayDebug:
+                            state.displayMove(m, 'y-')
+                    depthAllowed -= 1
+                if stateRollout.GetResult(node.playerJustMoved) > bestResult:
+                    bestResult = state.GetResult(node.playerJustMoved)
 
             # Backpropagate
             while node != None: # backpropagate from the expanded node and work back to the root node
-                node.Update(state.GetResult(node.playerJustMoved)) # state is terminal. Update node with result from POV of node.playerJustMoved
+                node.Update(bestResult) # state is terminal. Update node with result from POV of node.playerJustMoved
                 node = node.parentNode
-        # Output some information about the tree - can be omitted
-        #if (verbose):
-        #    print(rootnode.TreeToString(0))
-        #else:
-        #    print(rootnode.ChildrenToString())
-        print("explored : " + str(number_of_addchild) + " evolved : " + str(number_of_evolution) + " expanded : " + str(expandedNodes), file=sys.stderr)
+
+        print("explored : " + str(number_of_addchild) + " evolved : " + str(number_of_evolution), file=sys.stderr)
         return sorted(self.rootNode.childNodes, key = lambda c: c.visits)[-1].move # return the move that was most visited
-
-# def UCTPlayGame():
-#     """ Play a sample game between two UCT players where each player gets a different number
-#         of UCT iterations (= simulations = tree nodes).
-#     """
-#     # state = OthelloState(4) # uncomment to play Othello on a square board of the given size
-#     # state = OXOState() # uncomment to play OXO
-#     state = NimState(15) # uncomment to play Nim with the given number of starting chips
-#     while (state.GetMoves() != []):
-#         print str(state)
-#         if state.playerJustMoved == 1:
-#             m = UCT(rootstate = state, itermax = 1000, verbose = False) # play with values for itermax and verbose = True
-#         else:
-#             m = UCT(rootstate = state, itermax = 100, verbose = False)
-#         print "Best Move: " + str(m) + "\n"
-#         state.DoMove(m)
-#     if state.GetResult(state.playerJustMoved) == 1.0:
-#         print "Player " + str(state.playerJustMoved) + " wins!"
-#     elif state.GetResult(state.playerJustMoved) == 0.0:
-#         print "Player " + str(3 - state.playerJustMoved) + " wins!"
-#     else: print "Nobody wins!"
-#
-# if __name__ == "__main__":
-#     """ Play a single game to the end using UCT for both players.
-#     """
-#     UCTPlayGame()
-#
-#
-                          
-            
-
