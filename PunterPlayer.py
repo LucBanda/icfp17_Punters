@@ -112,16 +112,15 @@ class UCTStrategy(LambdaPunter):
     def setup_map(self, map :dict, should_display=True):
         self.source = PunterGameState(FullGraph(map, should_display))
         self.source.fullGraph.display()
+        self.uctManager = UCT(self.source, self.client.timeout, 15)
 
     def claimRiver(self, punter, source, target):
-        #plt.clf()  # reset display
-        #self.source.fullGraph.display()
-        self.source.fullGraph.displayMove(source, target)
-        self.source.fullGraph.claim(source, target)  # remove the claimed river from the main graph
-        self.source.DoMove((source, target))
+        self.uctManager.playMove((source, target))
+        self.uctManager.rootState.fullGraph.displayMove(source, target)
+        self.uctManager.rootState.fullGraph.claim(source, target)  # remove the claimed river from the main graph
 
     def getNextMove(self):
-        move = UCT(self.source, self.client.timeout, 15)  # get the best move found
+        move = self.uctManager.run()  # get the best move found
         bestScore = 0
         bestMove = {}
         self.leftMoves -= 1  # update movesleft as we are returning the next move
