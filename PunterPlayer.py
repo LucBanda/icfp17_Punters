@@ -121,7 +121,7 @@ class UCTStrategy(LambdaPunter):
         self.source.DoMove((source, target))
 
     def getNextMove(self):
-        move = UCT(self.source, self.client.timeout, 5)  # get the best move found
+        move = UCT(self.source, self.client.timeout, 15)  # get the best move found
         bestScore = 0
         bestMove = {}
         self.leftMoves -= 1  # update movesleft as we are returning the next move

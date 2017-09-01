@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import sys
 import copy
+import random
 
 def print_err(string :str):
     print(string, file = sys.stderr)
@@ -190,6 +191,16 @@ class PunterGameState(nx.Graph):
         """
         return [(source, target) for source in self.nodes_iter() for target in self.fullGraph.neighbors_iter(source) if (source, target) not in self.edges()]
 
+    def GetRandomMove(self):
+        sources = self.nodes()
+        if sources:
+            source = random.choice(sources)
+            targets = self.neighbors(source)
+            if targets:
+                target = random.choice(targets)
+                return (source, target)
+        return None
+
     def GetResult(self, playerjm):
         """ Get the game result from the viewpoint of playerjm.
         """
@@ -253,8 +264,8 @@ class FullGraph(nx.Graph):
             plt.plot([site["site"].x for site in self.node.values() if site["site"].isMine],
                      [site["site"].y for site in self.node.values() if site["site"].isMine], 'ro',
                      label="mine")  # draw mines
-            for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
-                plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+            #for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
+            #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
 
             plt.show(block=False)  # show non blocking
 
