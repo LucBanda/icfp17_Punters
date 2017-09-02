@@ -130,6 +130,7 @@ class UCT:
             # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
             bestResult = 0
             for i in range(0, k):
+            #if True:
                 stateRollout = state.Clone()
                 depthAllowed=self.depthMax
                 while depthAllowed > 0: # while state is non-terminal
@@ -139,7 +140,7 @@ class UCT:
                         number_of_evolution += 1
                         if self.displayDebug:
                             stateRollout.displayMove(m, 'y-')
-                        depthAllowed -= 1
+                    depthAllowed -= 1
                 if stateRollout.GetResult(node.playerJustMoved) > bestResult:
                     bestResult = stateRollout.GetResult(node.playerJustMoved)
 
