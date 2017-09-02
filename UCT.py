@@ -38,7 +38,7 @@ class Node:
             lambda c: c.wins/c.visits + UCTK * sqrt(2*log(self.visits)/c.visits to vary the amount of
             exploration versus exploitation.
         """
-        s = sorted(self.childNodes, key = lambda c: c.wins/c.visits + sqrt(2*log(self.visits)/c.visits))[-1]
+        s = sorted(self.childNodes, key = lambda c: 2*c.wins/c.visits + sqrt(2*log(self.visits)/c.visits))[-1]
         return s
     
     def AddChild(self, m, s):
@@ -108,13 +108,13 @@ class UCT:
             state = self.rootState.Clone()
             #clear graphics
             if self.displayDebug:
-                self.state.clearDisplay()
+                state.clearDisplay()
             # Select
             while node.untriedMoves == [] and node.childNodes != []: # node is fully expanded and non-terminal
                 node = node.UCTSelectChild()
                 state.DoMove(node.move)
                 if self.displayDebug:
-                    state.fullGraph.displayMove(node.move, "r-")
+                    state.displayMove(node.move, "r-")
 
             # Expand
             if node.untriedMoves != []: # if we can expand (i.e. state/node is non-terminal)
@@ -134,13 +134,13 @@ class UCT:
                 while depthAllowed > 0: # while state is non-terminal
                     m = stateRollout.GetRandomMove()
                     if m:
-                        state.DoMove(m)
+                        stateRollout.DoMove(m)
                         number_of_evolution += 1
                         if self.displayDebug:
-                            state.displayMove(m, 'y-')
-                    depthAllowed -= 1
+                            stateRollout.displayMove(m, 'y-')
+                        depthAllowed -= 1
                 if stateRollout.GetResult(node.playerJustMoved) > bestResult:
-                    bestResult = state.GetResult(node.playerJustMoved)
+                    bestResult = stateRollout.GetResult(node.playerJustMoved)
 
             # Backpropagate
             while node != None: # backpropagate from the expanded node and work back to the root node

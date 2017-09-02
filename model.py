@@ -207,7 +207,7 @@ class PunterGameState(nx.Graph):
         sources = self.nodes()
         if sources:
             source = random.choice(sources)
-            targets = self.neighbors(source)
+            targets = self.fullGraph.neighbors(source)
             if targets:
                 target = random.choice(targets)
                 return (source, target)
@@ -243,7 +243,7 @@ class PunterGameState(nx.Graph):
         """
         return self.edges()
 
-    def display(self, move, color='r-'):
+    def displayMove(self, move, color='r-'):
         self.fullGraph.displayMove(move[0],move[1], color)
 
     def clearDisplay(self):
@@ -287,8 +287,8 @@ class FullGraph(nx.Graph):
             plt.plot([site["site"].x for site in self.node.values() if site["site"].isMine],
                      [site["site"].y for site in self.node.values() if site["site"].isMine], 'ro',
                      label="mine")  # draw mines
-            #for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
-            #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+            for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
+                plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
 
             plt.show(block=False)  # show non blocking
 

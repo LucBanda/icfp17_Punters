@@ -22,10 +22,12 @@ if __name__ == '__main__':
     port = 9000
     display = False
     strategy = 'discovery'
+    debug = False
+
     try:
-        opts, args = getopt.getopt(argv, "hdt:p:s:")
+        opts, args = getopt.getopt(argv, "hdvt:p:s:")
     except getopt.GetoptError:
-        print("punter.py [-d] [-h [-p port] [-t timeout] [-s strategy]]")
+        print("punter.py [-d][-v] [-h [-p port] [-t timeout] [-s strategy]]")
         sys.exit(2)
 
     for opt, arg in opts:
@@ -40,6 +42,8 @@ if __name__ == '__main__':
             display = True
         elif opt == "-s":
             strategy = arg
+        elif opt == "-v":
+            debug = True
 
     # play with local server provided by compete at http://git.kthxb.ai/compete/icfpc2017
     client = OnlineClient("localhost", port)  # instanciate and connect online client
