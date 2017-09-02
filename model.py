@@ -246,6 +246,10 @@ class PunterGameState(nx.Graph):
     def displayMove(self, move, color='r-'):
         self.fullGraph.displayMove(move[0],move[1], color)
 
+    def display(self, color='b-'):
+        for edge in self.edges_iter():
+            self.displayMove(edge, color)
+
     def clearDisplay(self):
         self.fullGraph.display(reset=True)
 
@@ -299,7 +303,7 @@ class FullGraph(nx.Graph):
     def claim(self, source :int, target :int):
         self.remove_edge(source, target)  # only remove the edge in the graph as it is not available anymore
 
-    def displayMove(self, source: int, target: int, color='r-'):
+    def displayMove(self, source: int, target: int, color='b-'):
         if self.should_display:
             sourceSite = self.node[source]["site"]  # get source and target in the graph
             targetSite = self.node[target]["site"]

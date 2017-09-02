@@ -50,7 +50,7 @@ if __name__ == '__main__':
     client.title = "local map"  # set the parameters of the client
     client.timeout = timeout
     if strategy == 'uct':
-        game = UCTStrategy(client, display)  # instanciate a punter
+        game = UCTStrategy(client, display, debug)  # instanciate a punter
     else:
         game = DiscoveryStrategy(client, display)  # instanciate a punter
     try:

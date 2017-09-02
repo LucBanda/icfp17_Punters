@@ -109,6 +109,7 @@ class UCT:
             #clear graphics
             if self.displayDebug:
                 state.clearDisplay()
+                state.display('b-')
             # Select
             while node.untriedMoves == [] and node.childNodes != []: # node is fully expanded and non-terminal
                 node = node.UCTSelectChild()

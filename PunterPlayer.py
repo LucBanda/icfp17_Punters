@@ -109,10 +109,14 @@ class DiscoveryStrategy(LambdaPunter):
         return bestMove   # return the move
 
 class UCTStrategy(LambdaPunter):
-    def setup_map(self, map :dict, should_display=True, should_debug = False):
+    def __init__(self, client, display=True, debug=False):
+        LambdaPunter.__init__(self, client, display)
+        self.should_debug = debug
+
+    def setup_map(self, map :dict, should_display=True):
         self.source = PunterGameState(FullGraph(map, should_display))
         self.source.fullGraph.display()
-        self.uctManager = UCT(self.source, self.client.timeout, 3, should_debug)
+        self.uctManager = UCT(self.source, self.client.timeout, 5, self.should_debug)
 
     def claimRiver(self, punter, source, target):
         self.uctManager.playMove((source, target))
