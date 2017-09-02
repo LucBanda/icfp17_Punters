@@ -38,7 +38,7 @@ class Node:
             lambda c: c.wins/c.visits + UCTK * sqrt(2*log(self.visits)/c.visits to vary the amount of
             exploration versus exploitation.
         """
-        s = sorted(self.childNodes, key = lambda c: 2*c.wins/c.visits + sqrt(2*log(self.visits)/c.visits))[-1]
+        s = sorted(self.childNodes, key = lambda c: c.wins/c.visits + sqrt(2*log(self.visits)/c.visits))[-1]
         return s
     
     def AddChild(self, m, s):
@@ -104,6 +104,7 @@ class UCT:
         #iterMax = 20000
         #while iterMax:
         #    iterMax -= 1
+            explored = 0
             node = self.rootNode
             state = self.rootState.Clone()
             #clear graphics
@@ -114,6 +115,7 @@ class UCT:
             while node.untriedMoves == [] and node.childNodes != []: # node is fully expanded and non-terminal
                 node = node.UCTSelectChild()
                 state.DoMove(node.move)
+                explored += 1
                 if self.displayDebug:
                     state.displayMove(node.move, "r-")
 
@@ -126,7 +128,8 @@ class UCT:
                 number_of_evolution += 1
                 if self.displayDebug:
                     state.displayMove(m, 'g-')
-
+            else:
+                break
             # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
             bestResult = 0
             for i in range(0, k):
@@ -149,5 +152,9 @@ class UCT:
                 node.Update(bestResult) # state is terminal. Update node with result from POV of node.playerJustMoved
                 node = node.parentNode
 
-        print("explored : " + str(number_of_addchild) + " evolved : " + str(number_of_evolution), file=sys.stderr)
-        return sorted(self.rootNode.childNodes, key = lambda c: c.visits)[-1].move # return the move that was most visited
+        print("explored : " + str(number_of_addchild) + " evolved : " + str(number_of_evolution) + " explored : " + str(explored), file=sys.stderr)
+        bestMoves = sorted(self.rootNode.childNodes, key = lambda c: c.visits)
+        if bestMoves:
+            return bestMoves[-1].move # return the move that was most visited
+        else:
+            return None

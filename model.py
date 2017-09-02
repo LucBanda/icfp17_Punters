@@ -143,39 +143,35 @@ class ScoringGraph(nx.Graph):
         for source in self.edges_iter():
             self.displayMove(source[0], source[1])
 
-class PunterGameState(nx.Graph):
+class PunterGameState():
     """ A state of the game, i.e. the game board. These are the only functions which are
         absolutely necessary to implement UCT in any 2-player complete information deterministic 
         zero-sum game, although they can be enhanced and made quicker, for example by using a 
         GetRandomMove() function to generate a random move during rollout.
         By convention the players are numbered 1 and 2.
     """
-    def __init__(self, fullGraph = None, sourceState = None):
-        if not sourceState:
-            nx.Graph.__init__(self)
-            self.fullGraph = fullGraph
-            self.playerJustMoved = 2 # At the root pretend the player just moved is player 2 - player 1 has the first move
-            self.score = 0 # score is invalid
-            self.pathes = {}
-            self.scores = {}
-            if fullGraph:
-                for mine in self.fullGraph.mines:
-                    self.add_node(mine, attr_dict=fullGraph.node[mine])  # import mines as nodes of scoring graph
-                    self.pathes[mine] = Path(mine)  # import mines in pathes as id
-                    self.scores[mine] = 0
-                self.moves = [(source, target) for source in self.nodes_iter() for target in self.neighbors(source)]
-        else:
-            nx.Graph.__init__(self, sourceState)
-            self.fullGraph = sourceState.fullGraph
-            self.score = sourceState.score
-            self.playerJustMoved = sourceState.playerJustMoved
-            self.pathes = copy.deepcopy(sourceState.pathes)
-            self.scores = copy.deepcopy(sourceState.scores)
+    def __init__(self, fullGraph = None):
+        self.fullGraph = fullGraph
+        self.playerJustMoved = 2 # At the root pretend the player just moved is player 2 - player 1 has the first move
+        self.score = 0 # score is invalid
+        self.pathes = {}
+        self.scores = {}
+        self.endpoints = []
+        if fullGraph:
+            for mine in self.fullGraph.mines:
+                self.pathes[mine] = Path(mine)  # import mines in pathes as id
+                self.scores[mine] = 0
 
     def Clone(self):
         """ Create a deep clone of this game state.
         """
-        st = PunterGameState(sourceState=self)
+        st = PunterGameState()
+        st.fullGraph = self.fullGraph
+        st.score = self.score
+        st.playerJustMoved = self.playerJustMoved
+        st.pathes = copy.deepcopy(self.pathes)
+        st.scores = copy.deepcopy(self.scores)
+        st.endpoints = self.endpoints[:]
         return st
 
     def DoMove(self, move):
@@ -184,20 +180,17 @@ class PunterGameState(nx.Graph):
         """
         source = move[0]
         target = move[1]
-        if not self.has_node(target):  # if target is not in graph
-            nodeAttr = self.fullGraph.node[target]  # getAttributes in node
-            self.add_node(target, attr_dict=nodeAttr.copy())  # add the node
-            self.add_edge(source, target)
+        if target not in self.scores:  # if target is not in graph
             path = self.pathes[source]
             path.nodes.append(target)  # append the target to the current path
+            self.endpoints.insert(0, target)
             for mine in path.mines:  # calculate associated score for each mine of the path
-                score = self.node[target]["pathForMine_"+str(mine)]**2
+                score = self.fullGraph.node[target]["pathForMine_"+str(mine)]**2
                 self.scores[target] = score
                 path.score += score  # increase the path score
                 self.score += score  # and the graph score
             self.pathes[target] = path
         else:  #if target is already in graph
-            self.add_edge(source, target)
             sourcePath = self.pathes[source]  # target path is a bit odd to be up to date,
             targetPath = self.pathes[target]  # it needs to refer to the current path of it's first mine path
             if sourcePath != targetPath:  # if source and target does not share the same path
@@ -207,36 +200,34 @@ class PunterGameState(nx.Graph):
                 for nodeId in newPath.nodes:  # update score for new path
                     self.scores[nodeId] = 0
                     for mine in newPath.mines:
-                        score = self.node[nodeId]["pathForMine_" + str(mine)] ** 2
+                        score = self.fullGraph.node[nodeId]["pathForMine_" + str(mine)] ** 2
                         self.scores[nodeId] += score
                         newPath.score += score
                         self.score += score
                 for nodeId in newPath.nodes:  # update score for new path
                     self.pathes[nodeId] = newPath
 
-
     def GetMoves(self):
         """ Get all possible moves from this state.
         """
-        return [(source, target) for source in self.nodes_iter() for target in self.fullGraph.neighbors_iter(source) if not self.has_edge(source, target)]
+        return [(source, target) for source in self.scores.keys() for target in self.fullGraph.neighbors_iter(source) if target not in self.pathes[source].nodes]
 
     def GetRandomMove(self):
         move = None
-        sources = self.nodes()
-        sources.sort(key=lambda x:self.scores[x], reverse=True)
         trials = 10
-        while trials:
-            p = min(np.random.poisson(2), len(sources)-1)
-            source = sources[p]
-            targets = self.fullGraph.neighbors(source)
-            while targets:
-                target = random.choice(targets)
-                if target not in self.pathes[source].nodes:
-                    move = (source, target)
-                    break
-                else:
-                    targets.remove(target)
-            trials -= 1
+        if self.endpoints:
+            while trials:
+                p = min(np.random.poisson(1), len(self.endpoints)-1)
+                source = self.endpoints[p]
+                targets = self.fullGraph.neighbors(source)
+                while targets:
+                    target = random.choice(targets)
+                    if target not in self.pathes[source].nodes:
+                        move = (source, target)
+                        break
+                    else:
+                        targets.remove(target)
+                trials -= 1
         return move
 
     def GetResult(self, playerjm):
@@ -247,14 +238,14 @@ class PunterGameState(nx.Graph):
     def __repr__(self):
         """ Don't need this - but good style.
         """
-        return self.edges()
+        return self.scores()
 
     def displayMove(self, move, color='r-'):
         self.fullGraph.displayMove(move[0],move[1], color)
 
     def display(self, color='b-'):
-        for edge in self.edges_iter():
-            self.displayMove(edge, color)
+        #for node in self.scores.keys():
+        pass
 
     def clearDisplay(self):
         self.fullGraph.display(reset=True)
@@ -297,8 +288,8 @@ class FullGraph(nx.Graph):
             plt.plot([site["site"].x for site in self.node.values() if site["site"].isMine],
                      [site["site"].y for site in self.node.values() if site["site"].isMine], 'ro',
                      label="mine")  # draw mines
-            for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
-                plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
+            #for (node, attr) in self.nodes(data = True):          # this displays id of nodes if needed
+            #    plt.annotate(node, xy=(attr["site"].x, attr["site"].y))
 
             plt.show(block=False)  # show non blocking
 

@@ -117,6 +117,7 @@ class UCTStrategy(LambdaPunter):
         self.source = PunterGameState(FullGraph(map, should_display))
         self.source.fullGraph.display()
         self.uctManager = UCT(self.source, self.client.timeout, 3, self.should_debug)
+        self.leftMoves = self.source.fullGraph.number_of_edges()
 
     def claimRiver(self, punter, source, target):
         self.uctManager.playMove((source, target))
@@ -124,11 +125,15 @@ class UCTStrategy(LambdaPunter):
         self.uctManager.rootState.fullGraph.claim(source, target)  # remove the claimed river from the main graph
 
     def getNextMove(self):
-        move = self.uctManager.run(10)  # get the best move found
+        move = self.uctManager.run(3)  # get the best move found
         bestScore = 0
         bestMove = {}
         self.leftMoves -= 1  # update movesleft as we are returning the next move
         self.source.fullGraph.displayScore(self.client.title, bestScore, self.leftMoves)  # display score up to date
-        bestMove["claim"] =  {"punter": self.client.punter, "source": move[0], "target": move[1]}  # set the move
+        if move:
+            bestMove["claim"] =  {"punter": self.client.punter, "source": move[0], "target": move[1]}  # set the move
+        else:
+            bestMove = {"pass":{"punter":self.client.punter}}
+
         printD(bestMove)
         return bestMove   # return the move
