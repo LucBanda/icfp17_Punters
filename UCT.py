@@ -100,7 +100,7 @@ class UCT:
         startTime = time.time()
         number_of_addchild = 0
         number_of_evolution = 0
-        while(time.time() - startTime < self.timeout):
+        while(time.time() - startTime < self.timeout-0.20):
         #iterMax = 20000
         #while iterMax:
         #    iterMax -= 1
@@ -136,6 +136,7 @@ class UCT:
             #if True:
                 stateRollout = state.Clone()
                 depthAllowed=self.depthMax
+                rolloutNode = node
                 while depthAllowed > 0: # while state is non-terminal
                     m = stateRollout.GetRandomMove()
                     if m:
@@ -144,13 +145,10 @@ class UCT:
                         if self.displayDebug:
                             stateRollout.displayMove(m, 'y-')
                     depthAllowed -= 1
-                if stateRollout.GetResult(node.playerJustMoved) > bestResult:
-                    bestResult = stateRollout.GetResult(node.playerJustMoved)
-
-            # Backpropagate
-            while node != None: # backpropagate from the expanded node and work back to the root node
-                node.Update(bestResult) # state is terminal. Update node with result from POV of node.playerJustMoved
-                node = node.parentNode
+                # Backpropagate
+                while rolloutNode != None: # backpropagate from the expanded node and work back to the root node
+                    rolloutNode.Update(stateRollout.GetResult(node.playerJustMoved)) # state is terminal. Update node with result from POV of node.playerJustMoved
+                    rolloutNode = rolloutNode.parentNode
 
         print("explored : " + str(number_of_addchild) + " evolved : " + str(number_of_evolution) + " explored : " + str(explored), file=sys.stderr)
         bestMoves = sorted(self.rootNode.childNodes, key = lambda c: c.visits)

@@ -183,7 +183,6 @@ class PunterGameState():
         if target not in self.scores:  # if target is not in graph
             path = self.pathes[source]
             path.nodes.append(target)  # append the target to the current path
-            self.endpoints.insert(0, target)
             for mine in path.mines:  # calculate associated score for each mine of the path
                 score = self.fullGraph.node[target]["pathForMine_"+str(mine)]**2
                 self.scores[target] = score
@@ -206,6 +205,19 @@ class PunterGameState():
                         self.score += score
                 for nodeId in newPath.nodes:  # update score for new path
                     self.pathes[nodeId] = newPath
+        self.update_endpoints(source)
+        self.update_endpoints(target)
+
+    def update_endpoints(self, source :int):
+        stillneighbors = False
+        for neighbor in self.fullGraph.neighbors(source):
+            if neighbor not in self.pathes[source].nodes:
+                stillneighbors = True
+                break
+        if not stillneighbors and source in self.endpoints:
+            self.endpoints.remove(source)
+        elif stillneighbors and source not in self.endpoints:
+            self.endpoints.insert(0,source)
 
     def GetMoves(self):
         """ Get all possible moves from this state.
@@ -217,7 +229,7 @@ class PunterGameState():
         trials = 10
         if self.endpoints:
             while trials:
-                p = min(np.random.poisson(1), len(self.endpoints)-1)
+                p = min(np.random.poisson(2), len(self.endpoints)-1)
                 source = self.endpoints[p]
                 targets = self.fullGraph.neighbors(source)
                 while targets:
