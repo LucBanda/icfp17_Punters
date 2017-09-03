@@ -225,27 +225,35 @@ class PunterGameState():
         return [(source, target) for source in self.scores.keys() for target in self.fullGraph.neighbors_iter(source) if target not in self.pathes[source].nodes]
 
     def GetRandomMove(self):
-        move = None
-        trials = 10
-        if self.endpoints:
-            while trials:
-                p = min(np.random.poisson(2), len(self.endpoints)-1)
-                source = self.endpoints[p]
-                targets = self.fullGraph.neighbors(source)
-                while targets:
-                    target = random.choice(targets)
-                    if target not in self.pathes[source].nodes:
-                        move = (source, target)
-                        break
-                    else:
-                        targets.remove(target)
-                trials -= 1
-        return move
+        flat = False
+        if flat:
+            move = None
+            source = random.choice(self.endpoints)
+            target = random.choice(self.fullGraph.neighbors(source))
+            return (source, target)
+        else:
+            move = None
+            trials = 10
+            if self.endpoints:
+                while trials:
+                    np.random.chisquare(2)
+                    p = min(int(np.random.chisquare(2)/10.0*len(self.endpoints)), len(self.endpoints)-1)
+                    source = self.endpoints[p]
+                    targets = self.fullGraph.neighbors(source)
+                    while targets:
+                        target = random.choice(targets)
+                        if target not in self.pathes[source].nodes:
+                            move = (source, target)
+                            break
+                        else:
+                            targets.remove(target)
+                    trials -= 1
+            return move
 
     def GetResult(self, playerjm):
         """ Get the game result from the viewpoint of playerjm.
         """
-        return self.score
+        return self.score / len(self.scores)
 
     def __repr__(self):
         """ Don't need this - but good style.

@@ -19,6 +19,8 @@ from math import *
 import time
 import random
 import sys
+import numpy as np
+from functools import reduce
 
 class Node:
     """ A node in the game tree. Note wins is always from the viewpoint of playerJustMoved.
@@ -27,7 +29,7 @@ class Node:
     def __init__(self, move = None, parent = None, state = None):
         self.move = move # the move that got us to this node - "None" for the root node
         self.parentNode = parent # "None" for the root node
-        self.childNodes = []
+        self.childNodes = np.array([])
         self.wins = 0
         self.visits = 0
         self.untriedMoves = state.GetMoves() # future child nodes
@@ -38,7 +40,7 @@ class Node:
             lambda c: c.wins/c.visits + UCTK * sqrt(2*log(self.visits)/c.visits to vary the amount of
             exploration versus exploitation.
         """
-        s = sorted(self.childNodes, key = lambda c: c.wins/c.visits + sqrt(2*log(self.visits)/c.visits))[-1]
+        s = sorted(self.childNodes, key=lambda c: c.wins / c.visits + sqrt(2 * log(self.visits) / c.visits))[-1]
         return s
     
     def AddChild(self, m, s):
@@ -47,7 +49,7 @@ class Node:
         """
         n = Node(move = m, parent = self, state = s)
         self.untriedMoves.remove(m)
-        self.childNodes.append(n)
+        self.childNodes = np.append(self.childNodes, n)
         return n
     
     def Update(self, result):

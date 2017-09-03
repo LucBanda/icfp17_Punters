@@ -125,7 +125,7 @@ class UCTStrategy(LambdaPunter):
         self.uctManager.rootState.fullGraph.claim(source, target)  # remove the claimed river from the main graph
 
     def getNextMove(self):
-        move = self.uctManager.run(5)  # get the best move found
+        move = self.uctManager.run(3)  # get the best move found
         bestScore = 0
         bestMove = {}
         self.leftMoves -= 1  # update movesleft as we are returning the next move
