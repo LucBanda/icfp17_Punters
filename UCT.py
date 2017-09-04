@@ -87,6 +87,8 @@ class UCT:
         self.rootNode = Node(state = rootstate)
         self.rootState = rootstate
         self.displayDebug = displayDebug
+        self.multipleRollout = 1
+        self.charged = False
 
     def playMove(self, move):
         for child in self.rootNode.childNodes:
@@ -95,7 +97,7 @@ class UCT:
                 break
         self.rootState.DoMove(move)
 
-    def run(self, k):
+    def run(self):
         """ Conduct a UCT search for itermax iterations starting from rootstate.
             Return the best move from the rootstate.
             Assumes 2 alternating players (player 1 starts), with game results in the range [0.0, 1.0]."""
@@ -134,7 +136,7 @@ class UCT:
                 break
             # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
             bestResult = 0
-            for i in range(0, k):
+            for i in range(0, self.multipleRollout):
             #if True:
                 stateRollout = state.Clone()
                 depthAllowed=self.depthMax
@@ -152,7 +154,14 @@ class UCT:
                     rolloutNode.Update(stateRollout.GetResult(node.playerJustMoved)) # state is terminal. Update node with result from POV of node.playerJustMoved
                     rolloutNode = rolloutNode.parentNode
 
-        print("explored : " + str(number_of_addchild) + " evolved : " + str(number_of_evolution) + " explored : " + str(explored), file=sys.stderr)
+        if self.charged and explored < 5:
+            self.multipleRollout = max(self.multipleRollout - 1, 1)
+        elif not self.charged and explored > 1:
+            self.charged = True
+        elif explored > 10:
+            self.multipleRollout += 1
+
+        print("explored : " + str(number_of_addchild) + " evolved : " + str(number_of_evolution) + " explored : " + str(explored) + " multiple factor : " + str(self.multipleRollout), file=sys.stderr)
         bestMoves = sorted(self.rootNode.childNodes, key = lambda c: c.visits)
         if bestMoves:
             return bestMoves[-1].move # return the move that was most visited
